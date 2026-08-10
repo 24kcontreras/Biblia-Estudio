@@ -1,6 +1,6 @@
-import { cleanVerseText } from "./bibleTextCleaner.js";
+import { slugToUsfm } from "./bibleBookCodes.js";
 
-const BASE_URL = "https://raw.githubusercontent.com/wldeh/bible-api/main";
+const BASE_URL = "https://bible.helloao.org/api";
 
 export class BibleSourceError extends Error {
   constructor(message: string, public statusCode: number) {
@@ -25,6 +25,85 @@ export interface ChapterVerse {
   text: string;
 }
 
+/**
+ * Únicamente versiones en español, de dominio público (ebible.org vía la API de HelloAO —
+ * la misma fuente que ya usamos para el comentario de Matthew Henry). No existe una API pública
+ * gratuita con NVI ni con una edición oficial de una editorial católica (Biblia de Jerusalén,
+ * Latinoamericana, etc.) — ambas son traducciones con derechos de autor. La opción marcada como
+ * "católica" es la única edición libre disponible que incluye los libros deuterocanónicos
+ * (Tobías, Judit, Sabiduría, Eclesiástico, Baruc y 1-2 Macabeos), que es lo que en la práctica
+ * distingue a una Biblia católica de una protestante.
+ */
+const SPANISH_VERSIONS: BibleVersion[] = [
+  {
+    id: "spa_r09",
+    version: "Reina Valera 1909",
+    description: "Traducción clásica de dominio público.",
+    language: { name: "Español", code: "spa" },
+    localVersionName: "Reina Valera 1909",
+    localVersionAbbreviation: "RV09",
+  },
+  {
+    id: "spa_rvg",
+    version: "Reina Valera Gómez",
+    description: "Revisión de la Reina Valera, de dominio público.",
+    language: { name: "Español", code: "spa" },
+    localVersionName: "Reina Valera Gómez",
+    localVersionAbbreviation: "RVG",
+  },
+  {
+    id: "spa_v2p",
+    version: "Valera 1602 Purificada",
+    description: "Revisión de la Valera de 1602, de dominio público.",
+    language: { name: "Español", code: "spa" },
+    localVersionName: "Valera 1602 Purificada",
+    localVersionAbbreviation: "V2P",
+  },
+  {
+    id: "spa_blm",
+    version: "Santa Biblia libre para el mundo",
+    description:
+      "Incluye los libros deuterocanónicos que reconoce la tradición católica (Tobías, Judit, Sabiduría, Eclesiástico, Baruc, 1-2 Macabeos).",
+    language: { name: "Español", code: "spa" },
+    localVersionName: "Biblia con Deuterocanónicos (católica)",
+    localVersionAbbreviation: "BLM",
+  },
+  {
+    id: "spa_pdt",
+    version: "Palabra de Dios para Ti",
+    description: "Traducción en español moderno, de fácil lectura.",
+    language: { name: "Español", code: "spa" },
+    localVersionName: "Palabra de Dios para Ti",
+    localVersionAbbreviation: "PDT",
+  },
+  {
+    id: "spa_onbv",
+    version: "Nueva Biblia Viva",
+    description: "Paráfrasis en español contemporáneo.",
+    language: { name: "Español", code: "spa" },
+    localVersionName: "Nueva Biblia Viva",
+    localVersionAbbreviation: "NBV",
+  },
+  {
+    id: "spa_bes",
+    version: "La Biblia en Español Sencillo",
+    description: "Traducción en español simplificado.",
+    language: { name: "Español", code: "spa" },
+    localVersionName: "Biblia en Español Sencillo",
+    localVersionAbbreviation: "BES",
+  },
+  {
+    id: "spa_vbl",
+    version: "Versión Biblia Libre",
+    description: "Traducción libre en español, de dominio público.",
+    language: { name: "Español", code: "spa" },
+    localVersionName: "Versión Biblia Libre",
+    localVersionAbbreviation: "VBL",
+  },
+];
+
+const VALID_VERSION_IDS = new Set(SPANISH_VERSIONS.map((v) => v.id));
+
 // Cache en memoria: el texto público del CDN es inmutable, así que no expira.
 const cache = new Map<string, unknown>();
 
@@ -46,11 +125,28 @@ async function fetchJson<T>(path: string): Promise<T> {
   return data;
 }
 
-let versionsPromise: Promise<BibleVersion[]> | undefined;
+export async function getVersions(): Promise<BibleVersion[]> {
+  return SPANISH_VERSIONS;
+}
 
-export function getVersions(): Promise<BibleVersion[]> {
-  versionsPromise ??= fetchJson<BibleVersion[]>("/bibles/bibles.json");
-  return versionsPromise;
+interface HelloAOContentEntry {
+  type: string;
+  number: number;
+  content: unknown[];
+}
+
+function joinVerseContent(content: unknown[]): string {
+  return content
+    .map((part) => (typeof part === "string" ? part : ((part as { text?: string })?.text ?? "")))
+    .join(" ")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
+
+function assertKnownVersion(versionId: string): void {
+  if (!VALID_VERSION_IDS.has(versionId)) {
+    throw new BibleSourceError(`Versión no reconocida: ${versionId}`, 404);
+  }
 }
 
 export async function getChapter(
@@ -58,11 +154,24 @@ export async function getChapter(
   bookSlug: string,
   chapter: number
 ): Promise<ChapterVerse[]> {
-  const path = `/bibles/${encodeURIComponent(versionId)}/books/${encodeURIComponent(
-    bookSlug
-  )}/chapters/${chapter}.json`;
-  const { data } = await fetchJson<{ data: ChapterVerse[] }>(path);
-  return data.map((v) => ({ ...v, text: cleanVerseText(versionId, v.text) }));
+  assertKnownVersion(versionId);
+  const usfm = slugToUsfm.get(bookSlug);
+  if (!usfm) {
+    throw new BibleSourceError(`Libro no reconocido: ${bookSlug}`, 404);
+  }
+
+  const data = await fetchJson<{ chapter: { content: HelloAOContentEntry[] } }>(
+    `/${versionId}/${usfm}/${chapter}.json`
+  );
+
+  return data.chapter.content
+    .filter((entry) => entry.type === "verse")
+    .map((entry) => ({
+      book: bookSlug,
+      chapter: String(chapter),
+      verse: String(entry.number),
+      text: joinVerseContent(entry.content),
+    }));
 }
 
 export async function getVerse(
@@ -71,9 +180,10 @@ export async function getVerse(
   chapter: number,
   verse: number
 ): Promise<{ verse: string; text: string }> {
-  const path = `/bibles/${encodeURIComponent(versionId)}/books/${encodeURIComponent(
-    bookSlug
-  )}/chapters/${chapter}/verses/${verse}.json`;
-  const data = await fetchJson<{ verse: string; text: string }>(path);
-  return { ...data, text: cleanVerseText(versionId, data.text) };
+  const verses = await getChapter(versionId, bookSlug, chapter);
+  const target = verses.find((v) => v.verse === String(verse));
+  if (!target) {
+    throw new BibleSourceError(`No se encontró el versículo ${bookSlug} ${chapter}:${verse}.`, 404);
+  }
+  return { verse: target.verse, text: target.text };
 }

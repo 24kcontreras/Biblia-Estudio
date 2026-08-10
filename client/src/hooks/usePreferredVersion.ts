@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 
 const STORAGE_KEY = "biblechat:version";
-export const DEFAULT_VERSION = "es-rv09";
+export const DEFAULT_VERSION = "spa_r09";
 
 export function usePreferredVersion(): [string, (version: string) => void] {
   const [version, setVersionState] = useState(() => localStorage.getItem(STORAGE_KEY) ?? DEFAULT_VERSION);

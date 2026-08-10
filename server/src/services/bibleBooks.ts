@@ -1,5 +1,5 @@
 export interface BibleBook {
-  /** Slug usado en las URLs del CDN (bibles/{version}/books/{slug}/...) */
+  /** Slug usado en las URLs de la app; se traduce a código USFM vía bibleBookCodes.ts para consultar la fuente bíblica. */
   slug: string;
   /** Nombre para mostrar en español */
   name: string;
@@ -9,7 +9,6 @@ export interface BibleBook {
   chapterCount: number;
 }
 
-// Slugs verificados contra el listado real del repo wldeh/bible-api (bibles/es-rv09/books).
 export const BIBLE_BOOKS: BibleBook[] = [
   { slug: "génesis", name: "Génesis", testament: "AT", order: 1, chapterCount: 50 },
   { slug: "éxodo", name: "Éxodo", testament: "AT", order: 2, chapterCount: 40 },

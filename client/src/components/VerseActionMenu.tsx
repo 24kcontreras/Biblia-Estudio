@@ -129,9 +129,8 @@ export function VerseActionMenu({
     setCompare({ status: "loading" });
     getVersions()
       .then(async (versions) => {
-        const spanish = versions.filter((v) => v.language.code === "spa");
         const entries = await Promise.all(
-          spanish.map(async (v) => {
+          versions.map(async (v) => {
             try {
               const data = await getChapter(v.id, bookSlug, chapter);
               const found = data.verses.find((vs) => Number(vs.verse) === verse);

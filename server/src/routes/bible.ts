@@ -10,15 +10,7 @@ bibleRouter.get("/books", (_req, res) => {
 
 bibleRouter.get("/versions", async (_req, res, next) => {
   try {
-    const versions = await getVersions();
-    // Español primero, luego el resto ordenado alfabéticamente por idioma/versión.
-    const sorted = [...versions].sort((a, b) => {
-      const aEs = a.language.code === "spa" ? 0 : 1;
-      const bEs = b.language.code === "spa" ? 0 : 1;
-      if (aEs !== bEs) return aEs - bEs;
-      return `${a.language.name} ${a.version}`.localeCompare(`${b.language.name} ${b.version}`);
-    });
-    res.json(sorted);
+    res.json(await getVersions());
   } catch (err) {
     next(err);
   }

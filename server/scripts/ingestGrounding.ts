@@ -12,6 +12,7 @@
  * Como cada operación de base de datos ahora viaja por red (Turso remoto), los inserts se
  * agrupan en batches en vez de hacerse fila por fila.
  */
+import "dotenv/config";
 import { inflateRawSync } from "node:zlib";
 import { db, initDb } from "../src/db.js";
 import { openBibleToSlug, usfmToSlug } from "../src/services/bibleBookCodes.js";
