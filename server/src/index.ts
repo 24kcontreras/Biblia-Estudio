@@ -6,7 +6,9 @@ import { chatRouter } from "./routes/chat.js";
 import { collectionsRouter } from "./routes/collections.js";
 import { marksRouter } from "./routes/marks.js";
 import { verseAnalysisRouter } from "./routes/verseAnalysis.js";
-import "./db.js";
+import { initDb } from "./db.js";
+
+await initDb();
 
 const app = express();
 const PORT = Number(process.env.PORT ?? 3001);
@@ -33,6 +35,12 @@ app.use((err: unknown, _req: express.Request, res: express.Response, _next: expr
   res.status(500).json({ error: "Error interno del servidor." });
 });
 
-app.listen(PORT, () => {
-  console.log(`BibleChat backend escuchando en http://localhost:${PORT}`);
-});
+// En Vercel el módulo se importa como función serverless (ver api/index.ts) — no hace falta
+// (ni conviene) que además intente abrir un puerto.
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`BibleChat backend escuchando en http://localhost:${PORT}`);
+  });
+}
+
+export default app;

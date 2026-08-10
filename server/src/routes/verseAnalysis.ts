@@ -25,9 +25,13 @@ verseAnalysisRouter.post("/", async (req, res, next) => {
       return res.status(404).json({ error: `Libro no reconocido: ${book}` });
     }
 
-    const cached = db
-      .prepare("SELECT analysis_json FROM verse_analysis_cache WHERE version = ? AND book = ? AND chapter = ? AND verse = ?")
-      .get(version, bookMeta.slug, chapterNum, verseNum) as { analysis_json: string } | undefined;
+    const cached = (await db.get(
+      "SELECT analysis_json FROM verse_analysis_cache WHERE version = ? AND book = ? AND chapter = ? AND verse = ?",
+      version,
+      bookMeta.slug,
+      chapterNum,
+      verseNum
+    )) as { analysis_json: string } | undefined;
 
     if (cached) {
       return res.json({ analysis: JSON.parse(cached.analysis_json) as VerseAnalysis, cached: true });
@@ -53,8 +57,8 @@ verseAnalysisRouter.post("/", async (req, res, next) => {
       .filter((v) => Math.abs(Number(v.verse) - verseNum) <= CONTEXT_WINDOW)
       .map((v) => ({ verse: Number(v.verse), text: v.text }));
 
-    const commentary = getCommentary(bookMeta.slug, chapterNum, verseNum);
-    const verifiedCrossReferences = getVerifiedCrossReferences(bookMeta.slug, chapterNum, verseNum);
+    const commentary = await getCommentary(bookMeta.slug, chapterNum, verseNum);
+    const verifiedCrossReferences = await getVerifiedCrossReferences(bookMeta.slug, chapterNum, verseNum);
 
     const analysis = await provider.analyzeVerse({
       versionName: version,
@@ -67,11 +71,16 @@ verseAnalysisRouter.post("/", async (req, res, next) => {
       verifiedCrossReferences,
     });
 
-    db.prepare(
+    await db.run(
       `INSERT INTO verse_analysis_cache (version, book, chapter, verse, analysis_json)
        VALUES (?, ?, ?, ?, ?)
-       ON CONFLICT(version, book, chapter, verse) DO UPDATE SET analysis_json = excluded.analysis_json`
-    ).run(version, bookMeta.slug, chapterNum, verseNum, JSON.stringify(analysis));
+       ON CONFLICT(version, book, chapter, verse) DO UPDATE SET analysis_json = excluded.analysis_json`,
+      version,
+      bookMeta.slug,
+      chapterNum,
+      verseNum,
+      JSON.stringify(analysis)
+    );
 
     res.json({ analysis, cached: false });
   } catch (err) {

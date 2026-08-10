@@ -6,12 +6,13 @@ interface CommentaryRow {
 }
 
 /** Comentario de Matthew Henry aplicable a este versículo (la entrada cuyo verse_start es el mayor <= verse). */
-export function getCommentary(book: string, chapter: number, verse: number): string | null {
-  const row = db
-    .prepare(
-      "SELECT content FROM commentary_matthew_henry WHERE book = ? AND chapter = ? AND verse_start <= ? ORDER BY verse_start DESC LIMIT 1"
-    )
-    .get(book, chapter, verse) as unknown as CommentaryRow | undefined;
+export async function getCommentary(book: string, chapter: number, verse: number): Promise<string | null> {
+  const row = (await db.get(
+    "SELECT content FROM commentary_matthew_henry WHERE book = ? AND chapter = ? AND verse_start <= ? ORDER BY verse_start DESC LIMIT 1",
+    book,
+    chapter,
+    verse
+  )) as CommentaryRow | undefined;
 
   return row?.content ?? null;
 }
@@ -30,21 +31,23 @@ interface CrossRefRow {
 }
 
 /** Referencias cruzadas verificadas (dataset basado en Treasury of Scripture Knowledge), solo votos positivos. */
-export function getVerifiedCrossReferences(
+export async function getVerifiedCrossReferences(
   book: string,
   chapter: number,
   verse: number,
   limit = 8
-): VerifiedCrossReference[] {
-  const rows = db
-    .prepare(
-      `SELECT to_book, to_chapter, to_verse_start, to_verse_end, votes
-       FROM cross_references
-       WHERE from_book = ? AND from_chapter = ? AND from_verse = ? AND votes > 0
-       ORDER BY votes DESC
-       LIMIT ?`
-    )
-    .all(book, chapter, verse, limit) as unknown as CrossRefRow[];
+): Promise<VerifiedCrossReference[]> {
+  const rows = (await db.all(
+    `SELECT to_book, to_chapter, to_verse_start, to_verse_end, votes
+     FROM cross_references
+     WHERE from_book = ? AND from_chapter = ? AND from_verse = ? AND votes > 0
+     ORDER BY votes DESC
+     LIMIT ?`,
+    book,
+    chapter,
+    verse,
+    limit
+  )) as CrossRefRow[];
 
   return rows
     .map((r) => {

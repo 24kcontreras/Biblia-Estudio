@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { asyncHandler } from "../asyncHandler.js";
 import { db } from "../db.js";
 import { findBook } from "../services/bibleBooks.js";
 
@@ -28,102 +29,120 @@ function toMark(row: MarkRow) {
   };
 }
 
-marksRouter.get("/chapter/:version/:book/:chapter", (req, res) => {
-  const { version, book, chapter } = req.params;
-  const bookMeta = findBook(book);
-  if (!bookMeta) {
-    return res.status(404).json({ error: `Libro no reconocido: ${book}` });
-  }
+marksRouter.get(
+  "/chapter/:version/:book/:chapter",
+  asyncHandler(async (req, res) => {
+    const { version, book, chapter } = req.params;
+    const bookMeta = findBook(book);
+    if (!bookMeta) {
+      res.status(404).json({ error: `Libro no reconocido: ${book}` });
+      return;
+    }
 
-  const rows = db
-    .prepare("SELECT * FROM verse_marks WHERE version = ? AND book = ? AND chapter = ?")
-    .all(version, bookMeta.slug, Number(chapter)) as unknown as MarkRow[];
-
-  res.json({ marks: rows.map(toMark) });
-});
-
-marksRouter.get("/", (req, res) => {
-  const type = req.query.type;
-  let rows: MarkRow[];
-
-  if (type === "favorite") {
-    rows = db
-      .prepare("SELECT * FROM verse_marks WHERE is_favorite = 1 ORDER BY updated_at DESC")
-      .all() as unknown as MarkRow[];
-  } else if (type === "memorize") {
-    rows = db
-      .prepare("SELECT * FROM verse_marks WHERE memorize = 1 ORDER BY updated_at DESC")
-      .all() as unknown as MarkRow[];
-  } else {
-    rows = db.prepare("SELECT * FROM verse_marks ORDER BY updated_at DESC").all() as unknown as MarkRow[];
-  }
-
-  res.json({ marks: rows.map(toMark) });
-});
-
-marksRouter.put("/:version/:book/:chapter/:verse", (req, res) => {
-  const { version, book, chapter, verse } = req.params;
-  const chapterNum = Number(chapter);
-  const verseNum = Number(verse);
-  const bookMeta = findBook(book);
-  if (!bookMeta) {
-    return res.status(404).json({ error: `Libro no reconocido: ${book}` });
-  }
-
-  const body = (req.body ?? {}) as {
-    isFavorite?: boolean;
-    color?: string | null;
-    note?: string | null;
-    memorize?: boolean;
-  };
-
-  const current = db
-    .prepare("SELECT * FROM verse_marks WHERE version = ? AND book = ? AND chapter = ? AND verse = ?")
-    .get(version, bookMeta.slug, chapterNum, verseNum) as unknown as MarkRow | undefined;
-
-  const merged = {
-    isFavorite: "isFavorite" in body ? Boolean(body.isFavorite) : Boolean(current?.is_favorite),
-    color: "color" in body ? body.color ?? null : (current?.color ?? null),
-    note: "note" in body ? body.note ?? null : (current?.note ?? null),
-    memorize: "memorize" in body ? Boolean(body.memorize) : Boolean(current?.memorize),
-  };
-
-  const isEmpty = !merged.isFavorite && !merged.color && !merged.note && !merged.memorize;
-
-  if (isEmpty) {
-    db.prepare(
-      "DELETE FROM verse_marks WHERE version = ? AND book = ? AND chapter = ? AND verse = ?"
-    ).run(version, bookMeta.slug, chapterNum, verseNum);
-    return res.json({ mark: null });
-  }
-
-  db.prepare(
-    `INSERT INTO verse_marks (version, book, chapter, verse, is_favorite, color, note, memorize, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
-     ON CONFLICT(version, book, chapter, verse) DO UPDATE SET
-       is_favorite = excluded.is_favorite,
-       color = excluded.color,
-       note = excluded.note,
-       memorize = excluded.memorize,
-       updated_at = excluded.updated_at`
-  ).run(
-    version,
-    bookMeta.slug,
-    chapterNum,
-    verseNum,
-    merged.isFavorite ? 1 : 0,
-    merged.color,
-    merged.note,
-    merged.memorize ? 1 : 0
-  );
-
-  res.json({
-    mark: {
+    const rows = (await db.all(
+      "SELECT * FROM verse_marks WHERE version = ? AND book = ? AND chapter = ?",
       version,
-      book: bookMeta.slug,
-      chapter: chapterNum,
-      verse: verseNum,
-      ...merged,
-    },
-  });
-});
+      bookMeta.slug,
+      Number(chapter)
+    )) as MarkRow[];
+
+    res.json({ marks: rows.map(toMark) });
+  })
+);
+
+marksRouter.get(
+  "/",
+  asyncHandler(async (req, res) => {
+    const type = req.query.type;
+    let rows: MarkRow[];
+
+    if (type === "favorite") {
+      rows = (await db.all("SELECT * FROM verse_marks WHERE is_favorite = 1 ORDER BY updated_at DESC")) as MarkRow[];
+    } else if (type === "memorize") {
+      rows = (await db.all("SELECT * FROM verse_marks WHERE memorize = 1 ORDER BY updated_at DESC")) as MarkRow[];
+    } else {
+      rows = (await db.all("SELECT * FROM verse_marks ORDER BY updated_at DESC")) as MarkRow[];
+    }
+
+    res.json({ marks: rows.map(toMark) });
+  })
+);
+
+marksRouter.put(
+  "/:version/:book/:chapter/:verse",
+  asyncHandler(async (req, res) => {
+    const { version, book, chapter, verse } = req.params;
+    const chapterNum = Number(chapter);
+    const verseNum = Number(verse);
+    const bookMeta = findBook(book);
+    if (!bookMeta) {
+      res.status(404).json({ error: `Libro no reconocido: ${book}` });
+      return;
+    }
+
+    const body = (req.body ?? {}) as {
+      isFavorite?: boolean;
+      color?: string | null;
+      note?: string | null;
+      memorize?: boolean;
+    };
+
+    const current = (await db.get(
+      "SELECT * FROM verse_marks WHERE version = ? AND book = ? AND chapter = ? AND verse = ?",
+      version,
+      bookMeta.slug,
+      chapterNum,
+      verseNum
+    )) as MarkRow | undefined;
+
+    const merged = {
+      isFavorite: "isFavorite" in body ? Boolean(body.isFavorite) : Boolean(current?.is_favorite),
+      color: "color" in body ? (body.color ?? null) : (current?.color ?? null),
+      note: "note" in body ? (body.note ?? null) : (current?.note ?? null),
+      memorize: "memorize" in body ? Boolean(body.memorize) : Boolean(current?.memorize),
+    };
+
+    const isEmpty = !merged.isFavorite && !merged.color && !merged.note && !merged.memorize;
+
+    if (isEmpty) {
+      await db.run(
+        "DELETE FROM verse_marks WHERE version = ? AND book = ? AND chapter = ? AND verse = ?",
+        version,
+        bookMeta.slug,
+        chapterNum,
+        verseNum
+      );
+      res.json({ mark: null });
+      return;
+    }
+
+    await db.run(
+      `INSERT INTO verse_marks (version, book, chapter, verse, is_favorite, color, note, memorize, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+       ON CONFLICT(version, book, chapter, verse) DO UPDATE SET
+         is_favorite = excluded.is_favorite,
+         color = excluded.color,
+         note = excluded.note,
+         memorize = excluded.memorize,
+         updated_at = excluded.updated_at`,
+      version,
+      bookMeta.slug,
+      chapterNum,
+      verseNum,
+      merged.isFavorite ? 1 : 0,
+      merged.color,
+      merged.note,
+      merged.memorize ? 1 : 0
+    );
+
+    res.json({
+      mark: {
+        version,
+        book: bookMeta.slug,
+        chapter: chapterNum,
+        verse: verseNum,
+        ...merged,
+      },
+    });
+  })
+);

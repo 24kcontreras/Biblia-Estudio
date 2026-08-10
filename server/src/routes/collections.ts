@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { asyncHandler } from "../asyncHandler.js";
 import { db } from "../db.js";
 import { findBook } from "../services/bibleBooks.js";
 
@@ -16,101 +17,131 @@ interface CollectionVerseRow {
   verse: number;
 }
 
-collectionsRouter.get("/", (_req, res) => {
-  const rows = db
-    .prepare(
+collectionsRouter.get(
+  "/",
+  asyncHandler(async (_req, res) => {
+    const rows = (await db.all(
       `SELECT c.id AS id, c.name AS name, COUNT(cv.collection_id) AS verseCount
        FROM collections c
        LEFT JOIN collection_verses cv ON cv.collection_id = c.id
        GROUP BY c.id
        ORDER BY c.created_at ASC`
-    )
-    .all() as unknown as { id: number; name: string; verseCount: number }[];
+    )) as { id: number; name: string; verseCount: number }[];
 
-  res.json({ collections: rows });
-});
+    res.json({ collections: rows });
+  })
+);
 
-collectionsRouter.post("/", (req, res) => {
-  const name = typeof req.body?.name === "string" ? req.body.name.trim() : "";
-  if (!name) {
-    return res.status(400).json({ error: "El nombre de la colección no puede estar vacío." });
-  }
+collectionsRouter.post(
+  "/",
+  asyncHandler(async (req, res) => {
+    const name = typeof req.body?.name === "string" ? req.body.name.trim() : "";
+    if (!name) {
+      res.status(400).json({ error: "El nombre de la colección no puede estar vacío." });
+      return;
+    }
 
-  try {
-    const result = db.prepare("INSERT INTO collections (name) VALUES (?)").run(name);
-    res.status(201).json({ id: Number(result.lastInsertRowid), name });
-  } catch {
-    res.status(409).json({ error: "Ya existe una colección con ese nombre." });
-  }
-});
+    try {
+      const result = await db.run("INSERT INTO collections (name) VALUES (?)", name);
+      res.status(201).json({ id: Number(result.lastInsertRowid), name });
+    } catch {
+      res.status(409).json({ error: "Ya existe una colección con ese nombre." });
+    }
+  })
+);
 
-collectionsRouter.delete("/:id", (req, res) => {
-  const id = Number(req.params.id);
-  db.prepare("DELETE FROM collection_verses WHERE collection_id = ?").run(id);
-  db.prepare("DELETE FROM collections WHERE id = ?").run(id);
-  res.status(204).end();
-});
+collectionsRouter.delete(
+  "/:id",
+  asyncHandler(async (req, res) => {
+    const id = Number(req.params.id);
+    await db.run("DELETE FROM collection_verses WHERE collection_id = ?", id);
+    await db.run("DELETE FROM collections WHERE id = ?", id);
+    res.status(204).end();
+  })
+);
 
-collectionsRouter.get("/:id", (req, res) => {
-  const id = Number(req.params.id);
-  const collection = db.prepare("SELECT id, name FROM collections WHERE id = ?").get(id) as unknown as
-    | CollectionRow
-    | undefined;
+collectionsRouter.get(
+  "/:id",
+  asyncHandler(async (req, res) => {
+    const id = Number(req.params.id);
+    const collection = (await db.get("SELECT id, name FROM collections WHERE id = ?", id)) as
+      | CollectionRow
+      | undefined;
 
-  if (!collection) {
-    return res.status(404).json({ error: "Colección no encontrada." });
-  }
+    if (!collection) {
+      res.status(404).json({ error: "Colección no encontrada." });
+      return;
+    }
 
-  const verses = db
-    .prepare(
-      "SELECT version, book, chapter, verse FROM collection_verses WHERE collection_id = ? ORDER BY added_at ASC"
-    )
-    .all(id) as unknown as CollectionVerseRow[];
+    const verses = (await db.all(
+      "SELECT version, book, chapter, verse FROM collection_verses WHERE collection_id = ? ORDER BY added_at ASC",
+      id
+    )) as CollectionVerseRow[];
 
-  res.json({ id: collection.id, name: collection.name, verses });
-});
+    res.json({ id: collection.id, name: collection.name, verses });
+  })
+);
 
-collectionsRouter.post("/:id/verses", (req, res) => {
-  const id = Number(req.params.id);
-  const { version, book, chapter, verse } = req.body ?? {};
-  const chapterNum = Number(chapter);
-  const verseNum = Number(verse);
+collectionsRouter.post(
+  "/:id/verses",
+  asyncHandler(async (req, res) => {
+    const id = Number(req.params.id);
+    const { version, book, chapter, verse } = req.body ?? {};
+    const chapterNum = Number(chapter);
+    const verseNum = Number(verse);
 
-  if (
-    typeof version !== "string" ||
-    !version ||
-    !book ||
-    !Number.isInteger(chapterNum) ||
-    !Number.isInteger(verseNum)
-  ) {
-    return res.status(400).json({ error: "Parámetros inválidos." });
-  }
+    if (
+      typeof version !== "string" ||
+      !version ||
+      !book ||
+      !Number.isInteger(chapterNum) ||
+      !Number.isInteger(verseNum)
+    ) {
+      res.status(400).json({ error: "Parámetros inválidos." });
+      return;
+    }
 
-  const bookMeta = findBook(book);
-  if (!bookMeta) {
-    return res.status(404).json({ error: `Libro no reconocido: ${book}` });
-  }
+    const bookMeta = findBook(book);
+    if (!bookMeta) {
+      res.status(404).json({ error: `Libro no reconocido: ${book}` });
+      return;
+    }
 
-  db.prepare(
-    `INSERT INTO collection_verses (collection_id, version, book, chapter, verse)
-     VALUES (?, ?, ?, ?, ?)
-     ON CONFLICT(collection_id, version, book, chapter, verse) DO NOTHING`
-  ).run(id, version, bookMeta.slug, chapterNum, verseNum);
+    await db.run(
+      `INSERT INTO collection_verses (collection_id, version, book, chapter, verse)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(collection_id, version, book, chapter, verse) DO NOTHING`,
+      id,
+      version,
+      bookMeta.slug,
+      chapterNum,
+      verseNum
+    );
 
-  res.status(204).end();
-});
+    res.status(204).end();
+  })
+);
 
-collectionsRouter.delete("/:id/verses/:version/:book/:chapter/:verse", (req, res) => {
-  const id = Number(req.params.id);
-  const { version, book, chapter, verse } = req.params;
-  const bookMeta = findBook(book);
-  if (!bookMeta) {
-    return res.status(404).json({ error: `Libro no reconocido: ${book}` });
-  }
+collectionsRouter.delete(
+  "/:id/verses/:version/:book/:chapter/:verse",
+  asyncHandler(async (req, res) => {
+    const id = Number(req.params.id);
+    const { version, book, chapter, verse } = req.params;
+    const bookMeta = findBook(book);
+    if (!bookMeta) {
+      res.status(404).json({ error: `Libro no reconocido: ${book}` });
+      return;
+    }
 
-  db.prepare(
-    "DELETE FROM collection_verses WHERE collection_id = ? AND version = ? AND book = ? AND chapter = ? AND verse = ?"
-  ).run(id, version, bookMeta.slug, Number(chapter), Number(verse));
+    await db.run(
+      "DELETE FROM collection_verses WHERE collection_id = ? AND version = ? AND book = ? AND chapter = ? AND verse = ?",
+      id,
+      version,
+      bookMeta.slug,
+      Number(chapter),
+      Number(verse)
+    );
 
-  res.status(204).end();
-});
+    res.status(204).end();
+  })
+);

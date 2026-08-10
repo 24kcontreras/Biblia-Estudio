@@ -1,18 +1,17 @@
-import { mkdirSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { DatabaseSync } from "node:sqlite";
-import { fileURLToPath } from "node:url";
+import { connect } from "@tursodatabase/serverless";
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-const DB_PATH = join(__dirname, "..", "data", "study.db");
+const url = process.env.TURSO_DATABASE_URL;
+const authToken = process.env.TURSO_AUTH_TOKEN;
 
-mkdirSync(dirname(DB_PATH), { recursive: true });
+if (!url) {
+  throw new Error("Falta configurar TURSO_DATABASE_URL en server/.env.");
+}
 
-export const db = new DatabaseSync(DB_PATH);
-db.exec("PRAGMA journal_mode = WAL;");
+// connect() es liviano y síncrono — no abre conexión de red hasta la primera consulta.
+export const db = connect({ url, authToken });
 
-db.exec(`
-  CREATE TABLE IF NOT EXISTS verse_analysis_cache (
+const SCHEMA_STATEMENTS = [
+  `CREATE TABLE IF NOT EXISTS verse_analysis_cache (
     version TEXT NOT NULL,
     book TEXT NOT NULL,
     chapter INTEGER NOT NULL,
@@ -20,19 +19,16 @@ db.exec(`
     analysis_json TEXT NOT NULL,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
     PRIMARY KEY (version, book, chapter, verse)
-  );
-
-  CREATE TABLE IF NOT EXISTS chat_messages (
+  )`,
+  `CREATE TABLE IF NOT EXISTS chat_messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     session_id TEXT NOT NULL,
     role TEXT NOT NULL,
     content TEXT NOT NULL,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_chat_messages_session ON chat_messages (session_id, id);
-
-  CREATE TABLE IF NOT EXISTS verse_marks (
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_chat_messages_session ON chat_messages (session_id, id)`,
+  `CREATE TABLE IF NOT EXISTS verse_marks (
     version TEXT NOT NULL,
     book TEXT NOT NULL,
     chapter INTEGER NOT NULL,
@@ -43,15 +39,13 @@ db.exec(`
     memorize INTEGER NOT NULL DEFAULT 0,
     updated_at TEXT NOT NULL DEFAULT (datetime('now')),
     PRIMARY KEY (version, book, chapter, verse)
-  );
-
-  CREATE TABLE IF NOT EXISTS collections (
+  )`,
+  `CREATE TABLE IF NOT EXISTS collections (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL UNIQUE,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS collection_verses (
+  )`,
+  `CREATE TABLE IF NOT EXISTS collection_verses (
     collection_id INTEGER NOT NULL,
     version TEXT NOT NULL,
     book TEXT NOT NULL,
@@ -59,17 +53,15 @@ db.exec(`
     verse INTEGER NOT NULL,
     added_at TEXT NOT NULL DEFAULT (datetime('now')),
     PRIMARY KEY (collection_id, version, book, chapter, verse)
-  );
-
-  CREATE TABLE IF NOT EXISTS commentary_matthew_henry (
+  )`,
+  `CREATE TABLE IF NOT EXISTS commentary_matthew_henry (
     book TEXT NOT NULL,
     chapter INTEGER NOT NULL,
     verse_start INTEGER NOT NULL,
     content TEXT NOT NULL,
     PRIMARY KEY (book, chapter, verse_start)
-  );
-
-  CREATE TABLE IF NOT EXISTS cross_references (
+  )`,
+  `CREATE TABLE IF NOT EXISTS cross_references (
     from_book TEXT NOT NULL,
     from_chapter INTEGER NOT NULL,
     from_verse INTEGER NOT NULL,
@@ -78,8 +70,15 @@ db.exec(`
     to_verse_start INTEGER NOT NULL,
     to_verse_end INTEGER NOT NULL,
     votes INTEGER NOT NULL
-  );
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_crossref_from
+    ON cross_references (from_book, from_chapter, from_verse, votes DESC)`,
+];
 
-  CREATE INDEX IF NOT EXISTS idx_crossref_from
-    ON cross_references (from_book, from_chapter, from_verse, votes DESC);
-`);
+let initPromise: Promise<void> | undefined;
+
+/** Crea las tablas si no existen. Idempotente — se puede llamar en cada arranque. */
+export function initDb(): Promise<void> {
+  initPromise ??= db.batch(SCHEMA_STATEMENTS).then(() => undefined);
+  return initPromise;
+}
