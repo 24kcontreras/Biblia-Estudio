@@ -5,7 +5,8 @@
 // estricta (algunos capítulos completos, como "Mateo 5-7", se repiten en varios episodios porque
 // el Sermón del Monte es un recurso narrativo recurrente en la serie).
 // Los títulos son los oficiales en español, tal como aparecen en watch.thechosen.tv (la plataforma
-// oficial de streaming de la serie). Los links de "ver" apuntan ahí, a la página de cada temporada.
+// oficial de streaming de la serie). Los links de "ver" apuntan directo al capítulo correspondiente
+// (via su videoId, sacado de la API pública de esa web: api.watch.thechosen.tv/v1/pages/by/season-N).
 
 export interface ChosenScriptureRef {
   /** Slug de libro, igual al usado en bibleBooks.ts */
@@ -20,6 +21,8 @@ export interface ChosenEpisode {
   season: number;
   episode: number;
   title: string;
+  /** ID del video en watch.thechosen.tv (para armar el link directo al capítulo). */
+  videoId: string;
   refs: ChosenScriptureRef[];
 }
 
@@ -43,12 +46,14 @@ export const CHOSEN_EPISODES: ChosenEpisode[] = [
   {
     season: 1,
     episode: 1,
+    videoId: "184683594334",
     title: "Te He Llamado por Tu Nombre",
     refs: [ref("isaías", 43, 1, 7), ref("sanjuan", 3, 1, 2), ref("sanlucas", 8, 1, 3), ref("sanjuan", 20, 11, 16)],
   },
   {
     season: 1,
     episode: 2,
+    videoId: "184683594335",
     title: "Sabat",
     refs: [
       ref("génesis", 2, 1, 3),
@@ -66,6 +71,7 @@ export const CHOSEN_EPISODES: ChosenEpisode[] = [
   {
     season: 1,
     episode: 3,
+    videoId: "184683594336",
     title: "Jesús Ama a los Niños",
     refs: [
       ref("deuteronomio", 6, 4, 5),
@@ -82,6 +88,7 @@ export const CHOSEN_EPISODES: ChosenEpisode[] = [
   {
     season: 1,
     episode: 4,
+    videoId: "184683594337",
     title: "La Roca sobre la que Se Construyó",
     refs: [
       ref("sanmateo", 3, 1, 12),
@@ -98,12 +105,14 @@ export const CHOSEN_EPISODES: ChosenEpisode[] = [
   {
     season: 1,
     episode: 5,
+    videoId: "184683594338",
     title: "El Regalo de Bodas",
     refs: [ref("1reyes", 19, 19, 21), ref("sanlucas", 2, 41, 52), ref("proverbios", 30, 1, 6), ref("sanjuan", 2, 1, 12)],
   },
   {
     season: 1,
     episode: 6,
+    videoId: "184683594339",
     title: "Compasión Indescriptible",
     refs: [
       ref("éxodo", 33, 20),
@@ -126,6 +135,7 @@ export const CHOSEN_EPISODES: ChosenEpisode[] = [
   {
     season: 1,
     episode: 7,
+    videoId: "184683594340",
     title: "Invitaciones",
     refs: [
       ref("números", 21, 4, 9),
@@ -139,6 +149,7 @@ export const CHOSEN_EPISODES: ChosenEpisode[] = [
   {
     season: 1,
     episode: 8,
+    videoId: "184683594341",
     title: "Yo Soy",
     refs: [
       refChapters("génesis", 16),
@@ -158,6 +169,7 @@ export const CHOSEN_EPISODES: ChosenEpisode[] = [
   {
     season: 2,
     episode: 1,
+    videoId: "184683594353",
     title: "Trueno",
     refs: [
       ref("génesis", 1, 1, 5),
@@ -173,6 +185,7 @@ export const CHOSEN_EPISODES: ChosenEpisode[] = [
   {
     season: 2,
     episode: 2,
+    videoId: "184683594354",
     title: "Te Vi",
     refs: [
       ref("génesis", 16, 7, 14),
@@ -187,12 +200,14 @@ export const CHOSEN_EPISODES: ChosenEpisode[] = [
   {
     season: 2,
     episode: 3,
+    videoId: "184683594355",
     title: "Mateo 4:24",
     refs: [ref("sanmateo", 4, 24), ref("zacarías", 14, 2, 4), ref("sanlucas", 2, 1, 7), ref("salmos", 139, 8)],
   },
   {
     season: 2,
     episode: 4,
+    videoId: "184683594356",
     title: "La Oportunidad Perfecta",
     refs: [
       ref("éxodo", 22, 20),
@@ -209,6 +224,7 @@ export const CHOSEN_EPISODES: ChosenEpisode[] = [
   {
     season: 2,
     episode: 5,
+    videoId: "184683594357",
     title: "Espíritu",
     refs: [
       ref("1reyes", 1, 1, 4),
@@ -227,6 +243,7 @@ export const CHOSEN_EPISODES: ChosenEpisode[] = [
   {
     season: 2,
     episode: 6,
+    videoId: "184683594358",
     title: "Ilegal",
     refs: [
       ref("deuteronomio", 23, 2, 4),
@@ -238,10 +255,11 @@ export const CHOSEN_EPISODES: ChosenEpisode[] = [
       ref("daniel", 7, 13, 14),
     ],
   },
-  { season: 2, episode: 7, title: "Ajuste de Cuentas", refs: [ref("sanmateo", 6, 5, 14)] },
+  { season: 2, episode: 7, title: "Ajuste de Cuentas", videoId: "184683594359", refs: [ref("sanmateo", 6, 5, 14)] },
   {
     season: 2,
     episode: 8,
+    videoId: "184683594360",
     title: "Más Allá de las Montañas",
     refs: [refChapters("sanmateo", 5, 7), ref("sanmateo", 5, 3, 12), ref("salmos", 139, 15, 16)],
   },
@@ -250,6 +268,7 @@ export const CHOSEN_EPISODES: ChosenEpisode[] = [
   {
     season: 3,
     episode: 1,
+    videoId: "184683594324",
     title: "De Vuelta a Casa",
     refs: [
       ref("números", 6, 24, 26),
@@ -262,12 +281,14 @@ export const CHOSEN_EPISODES: ChosenEpisode[] = [
   {
     season: 3,
     episode: 2,
+    videoId: "184683594325",
     title: "De Dos en Dos",
     refs: [refChapters("salmos", 3), ref("salmos", 139, 14), ref("isaías", 35, 5, 6), ref("job", 1, 21), refChapters("sanmateo", 10)],
   },
   {
     season: 3,
     episode: 3,
+    videoId: "184683594326",
     title: "Doctor, Cúrate a Ti Mismo",
     refs: [
       ref("1reyes", 17, 8, 16),
@@ -284,12 +305,14 @@ export const CHOSEN_EPISODES: ChosenEpisode[] = [
   {
     season: 3,
     episode: 4,
+    videoId: "184683594327",
     title: "Limpia, Parte 1",
     refs: [ref("levítico", 15, 7, 15), ref("sanmateo", 9, 18, 26), ref("sanmarcos", 5, 21, 43), ref("sanlucas", 8, 40, 56)],
   },
   {
     season: 3,
     episode: 5,
+    videoId: "184683594328",
     title: "Limpia, Parte 2",
     refs: [
       ref("sanmateo", 9, 14, 17),
@@ -304,12 +327,14 @@ export const CHOSEN_EPISODES: ChosenEpisode[] = [
   {
     season: 3,
     episode: 6,
+    videoId: "184683594331",
     title: "Intensidad en el Campamento",
     refs: [ref("proverbios", 27, 17), ref("sanmateo", 11, 2, 19), ref("sanlucas", 7, 18, 35)],
   },
   {
     season: 3,
     episode: 7,
+    videoId: "184683594333",
     title: "El Que Tiene Oídos, Oiga",
     refs: [
       ref("números", 15, 37, 41),
@@ -325,6 +350,7 @@ export const CHOSEN_EPISODES: ChosenEpisode[] = [
   {
     season: 3,
     episode: 8,
+    videoId: "184683594332",
     title: "Sustento",
     refs: [
       ref("job", 1, 21),
@@ -356,6 +382,7 @@ export const CHOSEN_EPISODES: ChosenEpisode[] = [
   {
     season: 4,
     episode: 1,
+    videoId: "184683596182",
     title: "Promesas",
     refs: [
       ref("éxodo", 30, 23, 25),
@@ -371,6 +398,7 @@ export const CHOSEN_EPISODES: ChosenEpisode[] = [
   {
     season: 4,
     episode: 2,
+    videoId: "184683596183",
     title: "Confesiones",
     refs: [
       ref("éxodo", 4, 24, 26),
@@ -389,6 +417,7 @@ export const CHOSEN_EPISODES: ChosenEpisode[] = [
   {
     season: 4,
     episode: 3,
+    videoId: "184683596185",
     title: "La Luna Se Convertirá en Sangre",
     refs: [
       ref("2samuel", 12, 15, 23),
@@ -407,6 +436,7 @@ export const CHOSEN_EPISODES: ChosenEpisode[] = [
   {
     season: 4,
     episode: 4,
+    videoId: "184683596186",
     title: "La Calma Antes",
     refs: [
       ref("salmos", 38, 7, 11),
@@ -422,12 +452,14 @@ export const CHOSEN_EPISODES: ChosenEpisode[] = [
   {
     season: 4,
     episode: 5,
+    videoId: "184683596187",
     title: "Sentados, Sirviendo y Planeando",
     refs: [ref("sanmateo", 5, 38, 42), ref("sanmateo", 20, 1, 16), ref("sanlucas", 10, 38, 42)],
   },
   {
     season: 4,
     episode: 6,
+    videoId: "184683596188",
     title: "Dedicación",
     refs: [
       ref("salmos", 113, 2, 4),
@@ -444,12 +476,14 @@ export const CHOSEN_EPISODES: ChosenEpisode[] = [
   {
     season: 4,
     episode: 7,
+    videoId: "184683596184",
     title: "La Última Señal",
     refs: [ref("deuteronomio", 30, 19), ref("isaías", 53, 3), refChapters("salmos", 13), refChapters("sanjuan", 11)],
   },
   {
     season: 4,
     episode: 8,
+    videoId: "184683596189",
     title: "Humilde",
     refs: [
       ref("eclesiastés", 12, 13),
@@ -470,9 +504,9 @@ export const CHOSEN_EPISODES: ChosenEpisode[] = [
 ];
 
 // Plataforma oficial de streaming de la serie (reemplazó a Angel Studios como distribuidor).
-// Cada temporada tiene su propia página con todos sus episodios listados.
-export function getChosenSeasonUrl(season: number): string {
-  return `https://watch.thechosen.tv/seasons/season-${season}`;
+// Cada episodio tiene su propio video, así que el link lleva directo al capítulo correcto.
+export function getChosenEpisodeUrl(episode: ChosenEpisode): string {
+  return `https://watch.thechosen.tv/video/${episode.videoId}`;
 }
 
 function refMatches(r: ChosenScriptureRef, bookSlug: string, chapter: number, verse: number): boolean {

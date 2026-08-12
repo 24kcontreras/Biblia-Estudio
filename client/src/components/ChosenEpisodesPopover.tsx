@@ -1,4 +1,4 @@
-import { getChosenSeasonUrl, type ChosenEpisode } from "../data/theChosenReferences";
+import { getChosenEpisodeUrl, type ChosenEpisode } from "../data/theChosenReferences";
 
 interface Props {
   reference: string;
@@ -37,12 +37,12 @@ export function ChosenEpisodesPopover({ reference, episodes, onClose }: Props) {
               </p>
               <p className="text-sm italic text-ink/70">"{ep.title}"</p>
               <a
-                href={getChosenSeasonUrl(ep.season)}
+                href={getChosenEpisodeUrl(ep)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="mt-1 inline-block text-xs font-medium text-amber-800 hover:underline"
               >
-                Ver Temporada {ep.season} en The Chosen ↗
+                Ver este capítulo ↗
               </a>
             </li>
           ))}
