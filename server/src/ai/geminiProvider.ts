@@ -35,6 +35,8 @@ export class GeminiProvider implements AIProvider {
     for await (const event of stream) {
       if (event.event_type === "step.delta" && event.delta?.type === "text") {
         yield event.delta.text;
+      } else if (event.event_type === "error") {
+        throw new Error(event.error?.message ?? "La IA devolvió un error durante el streaming.");
       }
     }
   }

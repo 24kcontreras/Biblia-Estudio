@@ -7,6 +7,14 @@ import { db } from "../db.js";
 
 export const chatRouter = Router();
 
+function friendlyAIError(err: Error): string {
+  const message = err.message ?? "";
+  if (message.includes("429") || /quota|rate.?limit/i.test(message)) {
+    return "Se alcanzó el límite de uso de la IA por ahora. Espera un minuto e intenta de nuevo.";
+  }
+  return "No se pudo generar la respuesta. Intenta de nuevo.";
+}
+
 interface MessageRow {
   role: "user" | "assistant";
   content: string;
@@ -115,7 +123,8 @@ chatRouter.post(
       );
       res.write(`event: done\ndata: ${JSON.stringify({ sessionId })}\n\n`);
     } catch (err) {
-      res.write(`event: error\ndata: ${JSON.stringify({ error: (err as Error).message })}\n\n`);
+      console.error(err);
+      res.write(`event: error\ndata: ${JSON.stringify({ error: friendlyAIError(err as Error) })}\n\n`);
     } finally {
       res.end();
     }

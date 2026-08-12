@@ -128,7 +128,25 @@ export function BibleReader() {
     setSelectedRange(null);
   };
 
+  const handleCloseSelection = () => {
+    setSelectionMode(false);
+    setSelectedRange(null);
+  };
+
+  const reloadMarks = () => {
+    getChapterMarks(version, bookSlug, chapterNum)
+      .then(({ marks }) => setMarksByVerse(new Map(marks.map((m) => [m.verse, m]))))
+      .catch(() => undefined);
+  };
+
   const menuVerseText = menuVerse ? chapter?.verses.find((v) => Number(v.verse) === menuVerse)?.text : undefined;
+  const selectedRangeText =
+    selectedRange && chapter
+      ? chapter.verses
+          .filter((v) => Number(v.verse) >= selectedRange.start && Number(v.verse) <= selectedRange.end)
+          .map((v) => `${v.verse}. ${v.text}`)
+          .join(" ")
+      : undefined;
 
   return (
     <div className="flex h-full">
@@ -179,11 +197,14 @@ export function BibleReader() {
           <button
             type="button"
             onClick={toggleSelectionMode}
-            className={`rounded p-2 text-lg leading-none hover:bg-ink/10 ${selectionMode ? "bg-sky-100 text-sky-800" : ""}`}
+            className={`rounded p-2 text-lg leading-none transition-colors ${
+              selectionMode ? "bg-ink text-parchment" : "hover:bg-ink/10"
+            }`}
             aria-label="Seleccionar varios versículos"
+            aria-pressed={selectionMode}
             title="Seleccionar varios versículos para analizar juntos"
           >
-            ☑️
+            {selectionMode ? "☑️" : "▢"}
           </button>
           <button
             type="button"
@@ -211,33 +232,25 @@ export function BibleReader() {
         </div>
       </div>
 
-      {selectionMode && selectedRange && (
-        <div className="fixed inset-x-0 bottom-0 z-40 flex animate-slide-up items-center justify-between gap-3 border-t border-ink/10 bg-white p-3 shadow-2xl lg:sticky">
-          <span className="text-sm font-medium">
-            {selectedRange.end > selectedRange.start
-              ? `${selectedRange.end - selectedRange.start + 1} versículos (${selectedRange.start}-${selectedRange.end})`
-              : `Versículo ${selectedRange.start}`}
-          </span>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setSelectedRange(null)}
-              className="rounded px-3 py-1.5 text-sm text-ink/60 hover:bg-ink/10"
-            >
-              Cancelar
-            </button>
-            <button
-              type="button"
-              onClick={handleAnalyzeSelection}
-              className="rounded bg-ink px-3 py-1.5 text-sm font-medium text-parchment transition-transform active:scale-95"
-            >
-              ✨ Analizar
-            </button>
-          </div>
-        </div>
+      {selectionMode && selectedRange && chapter && selectedRangeText !== undefined && (
+        <VerseActionMenu
+          version={version}
+          bookSlug={bookSlug}
+          bookName={chapter.book.name}
+          chapter={chapterNum}
+          verse={selectedRange.start}
+          verseEnd={selectedRange.end}
+          verseText={selectedRangeText}
+          mark={marksByVerse.get(selectedRange.start)}
+          onClose={handleCloseSelection}
+          onAnalyze={handleAnalyzeSelection}
+          onWordStudy={() => {}}
+          onMarkChange={reloadMarks}
+          onBulkMarkChange={reloadMarks}
+        />
       )}
 
-      {menuVerse && chapter && menuVerseText !== undefined && (
+      {!selectionMode && menuVerse && chapter && menuVerseText !== undefined && (
         <VerseActionMenu
           version={version}
           bookSlug={bookSlug}

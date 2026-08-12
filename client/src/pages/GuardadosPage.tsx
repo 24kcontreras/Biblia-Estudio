@@ -328,7 +328,7 @@ function ChatGuardadoTab() {
       {saved === null && <p className="text-sm text-ink/60">Cargando...</p>}
       {saved !== null && saved.length === 0 && (
         <p className="text-sm text-ink/50">
-          No tienes respuestas guardadas todavía. Usá "Guardar" debajo de una respuesta del chat.
+          No tienes respuestas guardadas todavía. Usa "Guardar" debajo de una respuesta del chat.
         </p>
       )}
 
@@ -374,7 +374,7 @@ function AnalisisGuardadoTab() {
       {saved === null && <p className="text-sm text-ink/60">Cargando...</p>}
       {saved !== null && saved.length === 0 && (
         <p className="text-sm text-ink/50">
-          No tienes análisis guardados todavía. Usá "💾 Guardar" dentro de un análisis de la Biblia.
+          No tienes análisis guardados todavía. Usa "💾 Guardar" dentro de un análisis de la Biblia.
         </p>
       )}
 

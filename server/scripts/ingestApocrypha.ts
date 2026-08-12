@@ -19,7 +19,9 @@ import { db, initDb } from "../src/db.js";
 
 const WIKISOURCE_API = "https://en.wikisource.org/w/api.php";
 const MODEL = "gemini-3.6-flash";
-const TRANSLATE_CONCURRENCY = 5;
+// El tier gratis de Gemini limita a 20 solicitudes/minuto — se traduce en serie con este delay
+// entre pedidos (≈18/min) para no pisar la cuota en vez de descubrirlo a los golpes con reintentos.
+const TRANSLATE_DELAY_MS = 3300;
 
 const apiKey = process.env.GEMINI_API_KEY;
 if (!apiKey) throw new Error("Falta GEMINI_API_KEY en server/.env.");
@@ -37,9 +39,18 @@ interface Work {
   fetch: () => Promise<RawChapter[]>;
 }
 
-async function wikisourceExtract(title: string): Promise<string> {
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function wikisourceExtract(title: string, attempt = 1): Promise<string> {
   const url = `${WIKISOURCE_API}?action=query&titles=${encodeURIComponent(title)}&prop=extracts&explaintext=1&format=json`;
-  const res = await fetch(url);
+  const res = await fetch(url, { headers: { "User-Agent": "BibleChat-personal-app/1.0 (uso personal, no comercial)" } });
+  if (res.status === 429 && attempt <= 8) {
+    console.log(`  (429 de Wikisource en "${title}", esperando ${attempt * 5}s antes de reintentar...)`);
+    await sleep(attempt * 5000);
+    return wikisourceExtract(title, attempt + 1);
+  }
   if (!res.ok) throw new Error(`HTTP ${res.status} en Wikisource para "${title}"`);
   const data = (await res.json()) as { query: { pages: Record<string, { extract?: string }> } };
   const page = Object.values(data.query.pages)[0];
@@ -67,21 +78,31 @@ function splitBySections(text: string): RawChapter[] {
   return chapters;
 }
 
+/** Quita líneas de encabezado wiki ("== Título ==", "=== Título ===", ...) que Wikisource deja en el
+ * texto plano cuando una página de capítulo tiene sub-secciones internas. */
+function stripWikiHeadings(text: string): string {
+  return text
+    .replace(/^={2,}\s*.*?\s*={2,}$/gm, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 async function fetchEnoch(): Promise<RawChapter[]> {
   const pages = await wikisourceAllPages("The Book of Enoch (Charles)/Chapter ");
   const chapters: RawChapter[] = [];
   for (const page of pages.sort()) {
     const match = /Chapter (\d+)/.exec(page);
     if (!match) continue;
-    const content = await wikisourceExtract(page);
-    if (content.trim()) chapters.push({ title: `Capítulo ${Number(match[1])}`, content });
+    const content = stripWikiHeadings(await wikisourceExtract(page));
+    if (content) chapters.push({ title: `Capítulo ${Number(match[1])}`, content });
+    await sleep(1000);
   }
   return chapters;
 }
 
 async function fetchBarnabas(): Promise<RawChapter[]> {
   const text = await wikisourceExtract("Epistle of Barnabas (Lightfoot translation)");
-  return splitBySections(text).map((c, i) => ({ title: `Capítulo ${i + 1}`, content: c.content }));
+  return splitBySections(text).map((c, i) => ({ title: `Capítulo ${i + 1}`, content: stripWikiHeadings(c.content) }));
 }
 
 async function fetchHermas(): Promise<RawChapter[]> {
@@ -95,7 +116,7 @@ async function fetchHermas(): Promise<RawChapter[]> {
     const text = await wikisourceExtract(page);
     chapters.push(...splitBySections(text));
   }
-  return chapters.map((c, i) => ({ title: `${i + 1}. ${c.title}`, content: c.content }));
+  return chapters.map((c, i) => ({ title: `${i + 1}. ${c.title}`, content: stripWikiHeadings(c.content) }));
 }
 
 const WORKS: Work[] = [
@@ -122,36 +143,49 @@ const WORKS: Work[] = [
   },
 ];
 
-async function translateToSpanish(englishText: string): Promise<string> {
-  const interaction = await genai.interactions.create({
-    model: MODEL,
-    system_instruction:
-      "Sos un traductor experto de textos religiosos antiguos del inglés al español. Traducí el texto que se te da de forma clara, fiel y fluida, en español neutro. Mantené la numeración de versículos si el texto la tiene. No agregues comentarios, notas ni interpretación propia — solo la traducción. No incluyas los marcadores de crítica textual tipo ⌈ ⌉ del original, simplemente traducí el texto que encierran como parte normal de la oración.",
-    input: englishText,
-  });
-  return interaction.output_text?.trim() ?? "";
+async function translateToSpanish(englishText: string, attempt = 1): Promise<string> {
+  try {
+    const interaction = await genai.interactions.create({
+      model: MODEL,
+      system_instruction:
+        "Eres un traductor experto de textos religiosos antiguos del inglés al español. Traduce el texto que se te da de forma clara, fiel y fluida, en español neutro. Mantén la numeración de versículos si el texto la tiene. No agregues comentarios, notas ni interpretación propia — solo la traducción. No incluyas los marcadores de crítica textual tipo ⌈ ⌉ del original, simplemente traduce el texto que encierran como parte normal de la oración.",
+      input: englishText,
+    });
+    return interaction.output_text?.trim() ?? "";
+  } catch (err) {
+    const message = (err as Error).message ?? "";
+    const isRateLimit = message.includes("429") || /quota/i.test(message);
+    if (isRateLimit && attempt <= 6) {
+      const retryMatch = /retry in ([\d.]+)s/i.exec(message);
+      const waitMs = retryMatch ? Math.ceil(Number(retryMatch[1]) * 1000) + 1000 : attempt * 10000;
+      console.log(`  (cuota de Gemini alcanzada, esperando ${Math.round(waitMs / 1000)}s antes de reintentar...)`);
+      await sleep(waitMs);
+      return translateToSpanish(englishText, attempt + 1);
+    }
+    throw err;
+  }
 }
 
 async function translateChapters(chapters: RawChapter[]): Promise<RawChapter[]> {
   const results: RawChapter[] = new Array(chapters.length);
-  let cursor = 0;
+  let failures = 0;
 
-  async function worker(): Promise<void> {
-    for (;;) {
-      const index = cursor++;
-      if (index >= chapters.length) return;
-      const chapter = chapters[index];
-      try {
-        const content = await translateToSpanish(chapter.content);
-        results[index] = { title: chapter.title, content: content || chapter.content };
-      } catch (err) {
-        console.warn(`  Error traduciendo "${chapter.title}":`, (err as Error).message);
-        results[index] = chapter;
-      }
+  for (let i = 0; i < chapters.length; i++) {
+    const chapter = chapters[i];
+    try {
+      const content = await translateToSpanish(chapter.content);
+      results[i] = { title: chapter.title, content: content || chapter.content };
+    } catch (err) {
+      failures++;
+      console.warn(`  Error traduciendo "${chapter.title}" (queda en inglés):`, (err as Error).message);
+      results[i] = chapter;
     }
+    if (i < chapters.length - 1) await sleep(TRANSLATE_DELAY_MS);
   }
 
-  await Promise.all(Array.from({ length: TRANSLATE_CONCURRENCY }, () => worker()));
+  if (failures > 0) {
+    console.warn(`  ADVERTENCIA: ${failures} de ${chapters.length} capítulos quedaron sin traducir.`);
+  }
   return results;
 }
 

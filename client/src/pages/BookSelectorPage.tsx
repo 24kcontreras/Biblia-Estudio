@@ -13,8 +13,8 @@ export function BookSelectorPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
-      <h1 className="mb-1 font-serif text-2xl font-semibold">¿Qué querés leer?</h1>
-      <p className="mb-6 text-sm text-ink/50">Elegí un libro para empezar.</p>
+      <h1 className="mb-1 font-serif text-2xl font-semibold">¿Qué quieres leer?</h1>
+      <p className="mb-6 text-sm text-ink/50">Elige un libro para empezar.</p>
 
       {SECTIONS.map(({ testament, label }) => {
         const books = BIBLE_BOOKS.filter((b) => b.testament === testament);

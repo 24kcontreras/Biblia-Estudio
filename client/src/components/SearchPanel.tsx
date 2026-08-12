@@ -79,7 +79,7 @@ export function SearchPanel({ version, onClose }: Props) {
 
         <div className="max-h-[calc(75vh-58px)] overflow-y-auto p-2">
           {query.trim().length < 2 && (
-            <p className="p-3 text-sm text-ink/50">Escribí al menos 2 letras para buscar.</p>
+            <p className="p-3 text-sm text-ink/50">Escribe al menos 2 letras para buscar.</p>
           )}
           {loading && <p className="p-3 text-sm text-ink/50">Buscando...</p>}
           {!loading && results !== null && results.length === 0 && (

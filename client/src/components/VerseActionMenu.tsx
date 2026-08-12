@@ -17,12 +17,16 @@ interface Props {
   bookName: string;
   chapter: number;
   verse: number;
+  /** Último versículo del rango. Igual a `verse` cuando es un solo versículo (comportamiento normal). */
+  verseEnd?: number;
   verseText: string;
   mark: VerseMark | undefined;
   onClose: () => void;
   onAnalyze: () => void;
   onWordStudy: () => void;
   onMarkChange: (mark: VerseMark | null) => void;
+  /** Se llama tras aplicar un cambio de marca a todo un rango — el padre debe recargar las marcas del capítulo. */
+  onBulkMarkChange?: () => void;
 }
 
 type SubView = "menu" | "nota" | "colecciones" | "comparar";
@@ -38,13 +42,18 @@ export function VerseActionMenu({
   bookName,
   chapter,
   verse,
+  verseEnd,
   verseText,
   mark,
   onClose,
   onAnalyze,
   onWordStudy,
   onMarkChange,
+  onBulkMarkChange,
 }: Props) {
+  const rangeEnd = verseEnd ?? verse;
+  const isRange = rangeEnd > verse;
+
   const [subView, setSubView] = useState<SubView>("menu");
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -62,7 +71,8 @@ export function VerseActionMenu({
     return () => clearTimeout(feedbackTimeout.current);
   }, []);
 
-  const reference = `${bookName} ${chapter}:${verse}`;
+  const reference = isRange ? `${bookName} ${chapter}:${verse}-${rangeEnd}` : `${bookName} ${chapter}:${verse}`;
+  const rangeVerses = Array.from({ length: rangeEnd - verse + 1 }, (_, i) => verse + i);
 
   const showFeedback = (message: string) => {
     setFeedback(message);
@@ -71,6 +81,11 @@ export function VerseActionMenu({
   };
 
   const updateMark = async (update: Parameters<typeof upsertMark>[4]) => {
+    if (isRange) {
+      await Promise.all(rangeVerses.map((v) => upsertMark(version, bookSlug, chapter, v, update)));
+      onBulkMarkChange?.();
+      return;
+    }
     const { mark: updated } = await upsertMark(version, bookSlug, chapter, verse, update);
     onMarkChange(updated);
   };
@@ -81,7 +96,7 @@ export function VerseActionMenu({
   };
 
   const handleShare = async () => {
-    const url = `${location.origin}/biblia/${version}/${bookSlug}/${chapter}?v=${verse}`;
+    const url = `${location.origin}/biblia/${version}/${bookSlug}/${chapter}?v=${verse}${isRange ? `&vEnd=${rangeEnd}` : ""}`;
     if (navigator.share) {
       try {
         await navigator.share({ title: reference, text: verseText, url });
@@ -101,7 +116,7 @@ export function VerseActionMenu({
 
   const saveNota = async () => {
     await updateMark({ note: noteDraft.trim() || null });
-    setSubView("menu");
+    onClose();
   };
 
   const openColecciones = () => {
@@ -113,7 +128,7 @@ export function VerseActionMenu({
   };
 
   const handleAddToCollection = async (id: number, name: string) => {
-    await addVerseToCollection(id, { version, book: bookSlug, chapter, verse });
+    await Promise.all(rangeVerses.map((v) => addVerseToCollection(id, { version, book: bookSlug, chapter, verse: v })));
     setCollectionFeedback(`Agregado a "${name}"`);
   };
 
@@ -135,10 +150,13 @@ export function VerseActionMenu({
           versions.map(async (v) => {
             try {
               const data = await getChapter(v.id, bookSlug, chapter);
-              const found = data.verses.find((vs) => Number(vs.verse) === verse);
-              return { label: v.localVersionAbbreviation, text: found?.text ?? null };
+              const text = rangeVerses
+                .map((n) => data.verses.find((vs) => Number(vs.verse) === n)?.text)
+                .filter((t): t is string => Boolean(t))
+                .join(" ");
+              return { label: `${v.localVersionName} (${v.localVersionAbbreviation})`, text: text || null };
             } catch {
-              return { label: v.localVersionAbbreviation, text: null };
+              return { label: `${v.localVersionName} (${v.localVersionAbbreviation})`, text: null };
             }
           })
         );
@@ -188,7 +206,7 @@ export function VerseActionMenu({
 
               <div className="grid grid-cols-3 gap-2">
                 <ActionButton icon="✨" label="Analizar con IA" onClick={onAnalyze} />
-                <ActionButton icon="Ω" label="Estudio de palabras" onClick={onWordStudy} />
+                {!isRange && <ActionButton icon="Ω" label="Estudio de palabras" onClick={onWordStudy} />}
                 <ActionButton icon="📋" label="Copiar" onClick={handleCopy} />
                 <ActionButton icon="🔗" label="Compartir" onClick={handleShare} />
                 <ActionButton icon="⇄" label="Comparar" onClick={openComparar} />
@@ -196,13 +214,19 @@ export function VerseActionMenu({
                   icon={mark?.isFavorite ? "★" : "☆"}
                   label="Favorito"
                   active={mark?.isFavorite}
-                  onClick={() => updateMark({ isFavorite: !mark?.isFavorite })}
+                  onClick={async () => {
+                    await updateMark({ isFavorite: !mark?.isFavorite });
+                    onClose();
+                  }}
                 />
                 <ActionButton
                   icon="🧠"
                   label="Memorizar"
                   active={mark?.memorize}
-                  onClick={() => updateMark({ memorize: !mark?.memorize })}
+                  onClick={async () => {
+                    await updateMark({ memorize: !mark?.memorize });
+                    onClose();
+                  }}
                 />
                 <ActionButton
                   icon="🖍️"
@@ -214,6 +238,12 @@ export function VerseActionMenu({
                 <ActionButton icon="🗂️" label="Colecciones" onClick={openColecciones} />
               </div>
 
+              {isRange && (
+                <p className="mt-3 text-center text-xs text-ink/40">
+                  Favorito, Memorizar, Resaltar y Nota se aplican a los {rangeVerses.length} versículos seleccionados.
+                </p>
+              )}
+
               {colorPickerOpen && (
                 <div className="mt-3 flex items-center gap-2 rounded-lg bg-ink/5 p-3">
                   {VERSE_COLORS.map((c) => (
@@ -221,9 +251,10 @@ export function VerseActionMenu({
                       key={c.key}
                       type="button"
                       aria-label={c.label}
-                      onClick={() => {
-                        updateMark({ color: mark?.color === c.key ? null : c.key });
+                      onClick={async () => {
+                        await updateMark({ color: mark?.color === c.key ? null : c.key });
                         setColorPickerOpen(false);
+                        onClose();
                       }}
                       className={`h-8 w-8 rounded-full ${c.swatchClass} ${
                         mark?.color === c.key ? "ring-2 ring-offset-2 ring-ink" : ""

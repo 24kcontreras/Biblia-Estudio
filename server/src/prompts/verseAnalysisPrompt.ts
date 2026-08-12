@@ -132,7 +132,7 @@ export function buildVerseAnalysisUserMessage(input: VerseAnalysisInput): string
 
   if (input.verifiedCrossReferences && input.verifiedCrossReferences.length > 0) {
     const list = input.verifiedCrossReferences.map((r) => `- ${r.referencia} (voto de relevancia: ${r.votos})`).join("\n");
-    grounding += `\n\nReferencias cruzadas verificadas para este pasaje (dataset basado en Treasury of Scripture Knowledge, ordenadas por relevancia). Prioriza estas para "referenciasCruzadas" — elige las más pertinentes y escribe tú la nota explicando la conexión. Como máximo, podés agregar 1-2 referencias propias si son claramente relevantes y no están en esta lista:\n${list}`;
+    grounding += `\n\nReferencias cruzadas verificadas para este pasaje (dataset basado en Treasury of Scripture Knowledge, ordenadas por relevancia). Prioriza estas para "referenciasCruzadas" — elige las más pertinentes y escribe tú la nota explicando la conexión. Como máximo, puedes agregar 1-2 referencias propias si son claramente relevantes y no están en esta lista:\n${list}`;
   }
 
   return `Versión: ${input.versionName}

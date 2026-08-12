@@ -333,3 +333,23 @@ export function removeVerseFromCollection(collectionId: number, ref: CollectionV
     if (!r.ok) throw new Error(`Error ${r.status}`);
   });
 }
+
+export interface ApocryphaWork {
+  slug: string;
+  name: string;
+  description: string;
+  chapterCount: number;
+}
+
+export interface ApocryphaChapter {
+  title: string;
+  content: string;
+}
+
+export function getApocryphaWorks(): Promise<{ works: ApocryphaWork[] }> {
+  return fetch("/api/apocrypha/works").then((r) => handle(r));
+}
+
+export function getApocryphaChapter(work: string, chapter: number): Promise<ApocryphaChapter> {
+  return fetch(`/api/apocrypha/${encodeURIComponent(work)}/${chapter}`).then((r) => handle(r));
+}

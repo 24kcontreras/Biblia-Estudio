@@ -14,6 +14,9 @@ export function Layout() {
           <NavLink to="/biblia" className={linkClass}>
             Biblia
           </NavLink>
+          <NavLink to="/apocrifos" className={linkClass}>
+            Apócrifos
+          </NavLink>
           <NavLink to="/chat" className={linkClass}>
             Chat
           </NavLink>

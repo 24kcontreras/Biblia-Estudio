@@ -1,6 +1,7 @@
 import "dotenv/config";
 import cors from "cors";
 import express from "express";
+import { apocryphaRouter } from "./routes/apocrypha.js";
 import { bibleRouter } from "./routes/bible.js";
 import { chatRouter } from "./routes/chat.js";
 import { collectionsRouter } from "./routes/collections.js";
@@ -17,6 +18,7 @@ app.use(cors());
 app.use(express.json());
 
 app.use("/api/bible", bibleRouter);
+app.use("/api/apocrypha", apocryphaRouter);
 app.use("/api/chat", chatRouter);
 app.use("/api/verse/analyze", verseAnalysisRouter);
 app.use("/api/marks", marksRouter);

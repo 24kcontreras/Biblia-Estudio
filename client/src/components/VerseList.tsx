@@ -57,7 +57,7 @@ export function VerseList({
         })}
       </p>
       {selectionMode && (
-        <p className="mt-4 text-xs text-ink/40">Tocá los versículos que querés incluir en el análisis.</p>
+        <p className="mt-4 text-xs text-ink/40">Toca los versículos que quieres incluir en el análisis.</p>
       )}
     </div>
   );
