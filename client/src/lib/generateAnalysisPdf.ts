@@ -5,25 +5,54 @@ const ACCENT = [124, 45, 18] as const; // #7c2d12, mismo tono que el resto de la
 const INK = [43, 38, 32] as const; // #2b2620
 const MARGIN = 50;
 
-// Rango Unicode del griego (incluye griego politónico). La fuente estándar de jsPDF (helvetica)
-// no tiene esos glifos: al medir el ancho de esas letras para partir líneas, el cálculo se
-// descalibra y el texto se sale del margen. Como la transliteración ya va siempre al lado
-// (ej. "ἠγάπησεν - ēgapēsen"), se quita el griego del PDF y se deja solo la transliteración.
-const GREEK_RANGE = /[Ͱ-Ͽἀ-῿]+/g;
+// Rangos Unicode del griego (incluye politónico) y del hebreo/arameo (mismo alfabeto).
+// La fuente estándar de jsPDF (helvetica) no tiene esos glifos: fuera de WinAnsi/Latin-1,
+// jsPDF cae a una codificación de 2 bytes por carácter dentro de una fuente simple de 1 byte,
+// lo que corrompe el texto (algunos lectores, sobre todo en móvil, lo muestran como dañado).
+// Como la transliteración ya va siempre al lado (ej. "ἠγάπησεν - ēgapēsen", "בְּרֵאשִׁית - bereshit"),
+// se quita el original del PDF y se deja solo la transliteración.
+const ORIGINAL_LANGUAGE_RANGE = /[Ͱ-Ͽἀ-῿֐-׿]+/g;
 
-function stripGreekScript(text: string): string {
+function stripOriginalLanguageScript(text: string): string {
   return text
-    .replace(new RegExp(`${GREEK_RANGE.source}\\s*-\\s*`, "g"), "")
-    .replace(GREEK_RANGE, "")
+    .replace(new RegExp(`${ORIGINAL_LANGUAGE_RANGE.source}\\s*-\\s*`, "g"), "")
+    .replace(ORIGINAL_LANGUAGE_RANGE, "")
     .replace(/\(\s*\)/g, "")
     .replace(/\s{2,}/g, " ")
     .replace(/\s+([,.;:)])/g, "$1")
     .trim();
 }
 
-/** Quita marcado markdown y griego (ver stripGreekScript) para texto plano de PDF. */
+// Puntuación "tipográfica" (comillas curvas, rayas, puntos suspensivos, viñeta) que SÍ está
+// en WinAnsiEncoding aunque su código Unicode esté fuera de Latin-1 (0x00-0xFF).
+const WINANSI_EXTRA_CODEPOINTS = new Set([
+  0x20ac, 0x201a, 0x0192, 0x201e, 0x2026, 0x2020, 0x2021, 0x02c6, 0x2030, 0x0160, 0x2039, 0x0152,
+  0x017d, 0x2018, 0x2019, 0x201c, 0x201d, 0x2022, 0x2013, 0x2014, 0x02dc, 0x2122, 0x0161, 0x203a,
+  0x0153, 0x017e, 0x0178,
+]);
+
+// La transliteración académica (ej. "ēgapēsen", "bārā'") usa marcas diacríticas (macrón, breve,
+// punto bajo, etc.) y letras (ʾ alef, ʿ ayin) que tampoco están en WinAnsi. Basta con UN carácter
+// fuera de ese repertorio para que jsPDF corrompa el string completo (ver ORIGINAL_LANGUAGE_RANGE
+// arriba). Las tildes españolas (á, é, ñ...) ya están en WinAnsi y se dejan intactas; sólo se
+// decompone (NFD) y se le quita la marca diacrítica a los caracteres que lo necesitan, y
+// cualquiera que siga sin poder representarse se descarta.
+function toWinAnsiSafe(text: string): string {
+  return Array.from(text)
+    .map((ch) => {
+      const code = ch.codePointAt(0) as number;
+      if (code <= 0xff || WINANSI_EXTRA_CODEPOINTS.has(code)) return ch;
+      if (ch === "ʾ" || ch === "ʼ" || ch === "ʻ" || ch === "ʿ") return "'";
+      const base = ch.normalize("NFD").replace(/[̀-ͯ]/g, "");
+      const baseCode = base.length === 1 ? base.codePointAt(0) : undefined;
+      return baseCode !== undefined && baseCode <= 0xff ? base : "";
+    })
+    .join("");
+}
+
+/** Quita marcado markdown, griego/hebreo (ver stripOriginalLanguageScript) y caracteres fuera de WinAnsi. */
 function stripMarkdown(text: string): string {
-  return stripGreekScript(text)
+  return toWinAnsiSafe(stripOriginalLanguageScript(text))
     .replace(/^#{1,6}\s+/gm, "")
     .replace(/\*\*(.+?)\*\*/g, "$1")
     .replace(/__(.+?)__/g, "$1")
