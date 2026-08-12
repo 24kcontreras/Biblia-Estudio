@@ -1,4 +1,4 @@
-import { CHOSEN_WATCH_URL, type ChosenEpisode } from "../data/theChosenReferences";
+import { getChosenSeasonUrl, type ChosenEpisode } from "../data/theChosenReferences";
 
 interface Props {
   reference: string;
@@ -36,21 +36,20 @@ export function ChosenEpisodesPopover({ reference, episodes, onClose }: Props) {
                 Temporada {ep.season}, Episodio {ep.episode}
               </p>
               <p className="text-sm italic text-ink/70">"{ep.title}"</p>
+              <a
+                href={getChosenSeasonUrl(ep.season)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-1 inline-block text-xs font-medium text-amber-800 hover:underline"
+              >
+                Ver Temporada {ep.season} en The Chosen ↗
+              </a>
             </li>
           ))}
         </ul>
 
-        <a
-          href={CHOSEN_WATCH_URL}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="mt-3 block rounded bg-ink px-4 py-2 text-center text-sm font-medium text-parchment hover:opacity-90"
-        >
-          Ver en Angel Studios ↗
-        </a>
-        <p className="mt-2 text-center text-xs text-ink/40">
-          Serie independiente de terceros, sin afiliación con BibleChat. Disponibilidad de audio/subtítulos
-          en español según tu región.
+        <p className="mt-3 text-center text-xs text-ink/40">
+          Serie independiente de terceros, sin afiliación con BibleChat.
         </p>
       </div>
     </>

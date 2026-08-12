@@ -4,10 +4,8 @@
 // No es una fuente oficial de la producción: es una guía de descubrimiento, no una cita académica
 // estricta (algunos capítulos completos, como "Mateo 5-7", se repiten en varios episodios porque
 // el Sermón del Monte es un recurso narrativo recurrente en la serie).
-// Los títulos están en español (doblaje oficial). El link de "ver" apunta a la versión en
-// español de Angel Studios (angel.com/es), pero el idioma real del audio/subtítulos disponible
-// depende de la región y de cómo Angel Studios distribuya la serie en ese momento — no lo controla
-// esta app.
+// Los títulos son los oficiales en español, tal como aparecen en watch.thechosen.tv (la plataforma
+// oficial de streaming de la serie). Los links de "ver" apuntan ahí, a la página de cada temporada.
 
 export interface ChosenScriptureRef {
   /** Slug de libro, igual al usado en bibleBooks.ts */
@@ -51,7 +49,7 @@ export const CHOSEN_EPISODES: ChosenEpisode[] = [
   {
     season: 1,
     episode: 2,
-    title: "Shabbat",
+    title: "Sabat",
     refs: [
       ref("génesis", 2, 1, 3),
       ref("éxodo", 20, 8, 11),
@@ -68,7 +66,7 @@ export const CHOSEN_EPISODES: ChosenEpisode[] = [
   {
     season: 1,
     episode: 3,
-    title: "Jesús Tiene Ojos para los Niños",
+    title: "Jesús Ama a los Niños",
     refs: [
       ref("deuteronomio", 6, 4, 5),
       ref("deuteronomio", 32, 35),
@@ -84,7 +82,7 @@ export const CHOSEN_EPISODES: ChosenEpisode[] = [
   {
     season: 1,
     episode: 4,
-    title: "La Roca sobre la que Se Construye",
+    title: "La Roca sobre la que Se Construyó",
     refs: [
       ref("sanmateo", 3, 1, 12),
       ref("sanmateo", 4, 18, 22),
@@ -100,7 +98,7 @@ export const CHOSEN_EPISODES: ChosenEpisode[] = [
   {
     season: 1,
     episode: 5,
-    title: "Regalo de Bodas",
+    title: "El Regalo de Bodas",
     refs: [ref("1reyes", 19, 19, 21), ref("sanlucas", 2, 41, 52), ref("proverbios", 30, 1, 6), ref("sanjuan", 2, 1, 12)],
   },
   {
@@ -128,7 +126,7 @@ export const CHOSEN_EPISODES: ChosenEpisode[] = [
   {
     season: 1,
     episode: 7,
-    title: "Una Invitación",
+    title: "Invitaciones",
     refs: [
       ref("números", 21, 4, 9),
       ref("salmos", 2, 11, 12),
@@ -141,7 +139,7 @@ export const CHOSEN_EPISODES: ChosenEpisode[] = [
   {
     season: 1,
     episode: 8,
-    title: "Yo Soy Él",
+    title: "Yo Soy",
     refs: [
       refChapters("génesis", 16),
       ref("génesis", 33, 18, 20),
@@ -160,7 +158,7 @@ export const CHOSEN_EPISODES: ChosenEpisode[] = [
   {
     season: 2,
     episode: 1,
-    title: "Los Hijos del Trueno",
+    title: "Trueno",
     refs: [
       ref("génesis", 1, 1, 5),
       ref("salmos", 33, 6, 9),
@@ -229,7 +227,7 @@ export const CHOSEN_EPISODES: ChosenEpisode[] = [
   {
     season: 2,
     episode: 6,
-    title: "Ilícito",
+    title: "Ilegal",
     refs: [
       ref("deuteronomio", 23, 2, 4),
       ref("levítico", 24, 5, 9),
@@ -252,7 +250,7 @@ export const CHOSEN_EPISODES: ChosenEpisode[] = [
   {
     season: 3,
     episode: 1,
-    title: "Regreso a Casa",
+    title: "De Vuelta a Casa",
     refs: [
       ref("números", 6, 24, 26),
       ref("proverbios", 3, 5),
@@ -270,7 +268,7 @@ export const CHOSEN_EPISODES: ChosenEpisode[] = [
   {
     season: 3,
     episode: 3,
-    title: "Médico, Cúrate a Ti Mismo",
+    title: "Doctor, Cúrate a Ti Mismo",
     refs: [
       ref("1reyes", 17, 8, 16),
       refChapters("2reyes", 5),
@@ -286,13 +284,13 @@ export const CHOSEN_EPISODES: ChosenEpisode[] = [
   {
     season: 3,
     episode: 4,
-    title: "Limpieza, Parte 1",
+    title: "Limpia, Parte 1",
     refs: [ref("levítico", 15, 7, 15), ref("sanmateo", 9, 18, 26), ref("sanmarcos", 5, 21, 43), ref("sanlucas", 8, 40, 56)],
   },
   {
     season: 3,
     episode: 5,
-    title: "Limpieza, Parte 2",
+    title: "Limpia, Parte 2",
     refs: [
       ref("sanmateo", 9, 14, 17),
       ref("sanmateo", 9, 18, 26),
@@ -306,13 +304,13 @@ export const CHOSEN_EPISODES: ChosenEpisode[] = [
   {
     season: 3,
     episode: 6,
-    title: "Tensión en el Campamento",
+    title: "Intensidad en el Campamento",
     refs: [ref("proverbios", 27, 17), ref("sanmateo", 11, 2, 19), ref("sanlucas", 7, 18, 35)],
   },
   {
     season: 3,
     episode: 7,
-    title: "Oídos para Oír",
+    title: "El Que Tiene Oídos, Oiga",
     refs: [
       ref("números", 15, 37, 41),
       ref("sanmateo", 1, 1, 6),
@@ -391,7 +389,7 @@ export const CHOSEN_EPISODES: ChosenEpisode[] = [
   {
     season: 4,
     episode: 3,
-    title: "Luna Ensangrentada",
+    title: "La Luna Se Convertirá en Sangre",
     refs: [
       ref("2samuel", 12, 15, 23),
       ref("sanmateo", 6, 33),
@@ -409,7 +407,7 @@ export const CHOSEN_EPISODES: ChosenEpisode[] = [
   {
     season: 4,
     episode: 4,
-    title: "Calma Previa",
+    title: "La Calma Antes",
     refs: [
       ref("salmos", 38, 7, 11),
       ref("salmos", 77, 3, 4),
@@ -424,7 +422,7 @@ export const CHOSEN_EPISODES: ChosenEpisode[] = [
   {
     season: 4,
     episode: 5,
-    title: "Contemplar, Servir, Maquinar",
+    title: "Sentados, Sirviendo y Planeando",
     refs: [ref("sanmateo", 5, 38, 42), ref("sanmateo", 20, 1, 16), ref("sanlucas", 10, 38, 42)],
   },
   {
@@ -471,7 +469,11 @@ export const CHOSEN_EPISODES: ChosenEpisode[] = [
   },
 ];
 
-export const CHOSEN_WATCH_URL = "https://www.angel.com/es/watch/the-chosen";
+// Plataforma oficial de streaming de la serie (reemplazó a Angel Studios como distribuidor).
+// Cada temporada tiene su propia página con todos sus episodios listados.
+export function getChosenSeasonUrl(season: number): string {
+  return `https://watch.thechosen.tv/seasons/season-${season}`;
+}
 
 function refMatches(r: ChosenScriptureRef, bookSlug: string, chapter: number, verse: number): boolean {
   if (r.book !== bookSlug) return false;
