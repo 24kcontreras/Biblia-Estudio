@@ -11,14 +11,17 @@ if (!url) {
 export const db = connect({ url, authToken });
 
 const SCHEMA_STATEMENTS = [
-  `CREATE TABLE IF NOT EXISTS verse_analysis_cache (
+  // Reemplazada por verse_analysis_cache_v2 (soporta rangos de versículos) — se limpia la vieja.
+  `DROP TABLE IF EXISTS verse_analysis_cache`,
+  `CREATE TABLE IF NOT EXISTS verse_analysis_cache_v2 (
     version TEXT NOT NULL,
     book TEXT NOT NULL,
     chapter INTEGER NOT NULL,
-    verse INTEGER NOT NULL,
+    verse_start INTEGER NOT NULL,
+    verse_end INTEGER NOT NULL,
     analysis_json TEXT NOT NULL,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    PRIMARY KEY (version, book, chapter, verse)
+    PRIMARY KEY (version, book, chapter, verse_start, verse_end)
   )`,
   `CREATE TABLE IF NOT EXISTS chat_messages (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -73,6 +76,63 @@ const SCHEMA_STATEMENTS = [
   )`,
   `CREATE INDEX IF NOT EXISTS idx_crossref_from
     ON cross_references (from_book, from_chapter, from_verse, votes DESC)`,
+  `CREATE TABLE IF NOT EXISTS saved_chat_answers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    question TEXT,
+    answer TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`,
+  `CREATE VIRTUAL TABLE IF NOT EXISTS bible_search USING fts5(
+    version UNINDEXED,
+    book UNINDEXED,
+    chapter UNINDEXED,
+    verse UNINDEXED,
+    text,
+    tokenize = 'unicode61 remove_diacritics 2'
+  )`,
+  `CREATE TABLE IF NOT EXISTS strongs_greek (
+    number TEXT PRIMARY KEY,
+    greek TEXT NOT NULL,
+    transliteration TEXT NOT NULL,
+    pronunciation TEXT,
+    definition TEXT NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS word_study (
+    book TEXT NOT NULL,
+    chapter INTEGER NOT NULL,
+    verse INTEGER NOT NULL,
+    word_order INTEGER NOT NULL,
+    greek TEXT NOT NULL,
+    transliteration TEXT,
+    strongs_number TEXT,
+    gloss_es TEXT,
+    PRIMARY KEY (book, chapter, verse, word_order)
+  )`,
+  `CREATE INDEX IF NOT EXISTS idx_word_study_verse ON word_study (book, chapter, verse)`,
+  `CREATE TABLE IF NOT EXISTS saved_analyses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    version TEXT NOT NULL,
+    book TEXT NOT NULL,
+    book_name TEXT NOT NULL,
+    chapter INTEGER NOT NULL,
+    verse_start INTEGER NOT NULL,
+    verse_end INTEGER NOT NULL,
+    analysis_json TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`,
+  `CREATE TABLE IF NOT EXISTS apocrypha_works (
+    slug TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL,
+    chapter_count INTEGER NOT NULL
+  )`,
+  `CREATE TABLE IF NOT EXISTS apocrypha_chapters (
+    work_slug TEXT NOT NULL,
+    chapter_number INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    PRIMARY KEY (work_slug, chapter_number)
+  )`,
 ];
 
 let initPromise: Promise<void> | undefined;

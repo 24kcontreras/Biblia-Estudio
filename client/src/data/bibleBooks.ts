@@ -1,7 +1,7 @@
 export interface BibleBookMeta {
   slug: string;
   name: string;
-  testament: "AT" | "NT";
+  testament: "AT" | "NT" | "DEU";
   chapterCount: number;
 }
 
@@ -74,6 +74,23 @@ export const BIBLE_BOOKS: BibleBookMeta[] = [
   { slug: "3juan", name: "3 Juan", testament: "NT", chapterCount: 1 },
   { slug: "judas", name: "Judas", testament: "NT", chapterCount: 1 },
   { slug: "apocalipsis", name: "Apocalipsis", testament: "NT", chapterCount: 22 },
+
+  // Deuterocanónicos/apócrifos — solo disponibles en la versión spa_blm (ver server/src/services/bibleBookCodes.ts).
+  { slug: "tobit", name: "Tobit", testament: "DEU", chapterCount: 14 },
+  { slug: "judit", name: "Judit", testament: "DEU", chapterCount: 16 },
+  { slug: "sabiduría", name: "Sabiduría", testament: "DEU", chapterCount: 19 },
+  { slug: "sirácide", name: "Sirácide", testament: "DEU", chapterCount: 51 },
+  { slug: "baruc", name: "Baruc", testament: "DEU", chapterCount: 6 },
+  { slug: "1macabeos", name: "1 Macabeos", testament: "DEU", chapterCount: 16 },
+  { slug: "2macabeos", name: "2 Macabeos", testament: "DEU", chapterCount: 15 },
+  { slug: "3macabeos", name: "3 Macabeos", testament: "DEU", chapterCount: 7 },
+  { slug: "4macabeos", name: "4 Macabeos", testament: "DEU", chapterCount: 18 },
+  { slug: "estergriega", name: "Ester griega", testament: "DEU", chapterCount: 10 },
+  { slug: "danielgriego", name: "Daniel griego", testament: "DEU", chapterCount: 14 },
+  { slug: "1esdras", name: "1 Esdras", testament: "DEU", chapterCount: 9 },
+  { slug: "2esdras", name: "2 Esdras", testament: "DEU", chapterCount: 16 },
+  { slug: "manasés", name: "Manasés", testament: "DEU", chapterCount: 1 },
+  { slug: "salmo151", name: "Salmo 151", testament: "DEU", chapterCount: 1 },
 ];
 
 function normalize(input: string): string {

@@ -3,29 +3,43 @@ import { getVerseColor } from "../data/verseColors";
 
 interface Props {
   chapter: ChapterResponse;
-  highlightedVerse: number | null;
+  highlightedRange: { start: number; end: number } | null;
   marksByVerse: Map<number, VerseMark>;
   onSelectVerse: (verse: ChapterVerse) => void;
+  fontSize: number;
+  selectionMode?: boolean;
+  selectedRange?: { start: number; end: number } | null;
 }
 
-export function VerseList({ chapter, highlightedVerse, marksByVerse, onSelectVerse }: Props) {
+export function VerseList({
+  chapter,
+  highlightedRange,
+  marksByVerse,
+  onSelectVerse,
+  fontSize,
+  selectionMode,
+  selectedRange,
+}: Props) {
   return (
     <div className="mx-auto max-w-2xl px-4 py-6 sm:px-6 sm:py-8">
       <h1 className="mb-4 font-serif text-xl font-semibold sm:text-2xl">
         {chapter.book.name} {chapter.chapter}
       </h1>
-      <p className="text-base leading-8 sm:text-lg sm:leading-loose">
+      <p style={{ fontSize: `${fontSize}px`, lineHeight: 1.7 }}>
         {chapter.verses.map((v) => {
           const verseNum = Number(v.verse);
-          const isHighlighted = verseNum === highlightedVerse;
+          const isHighlighted = Boolean(highlightedRange && verseNum >= highlightedRange.start && verseNum <= highlightedRange.end);
+          const isSelected = Boolean(selectedRange && verseNum >= selectedRange.start && verseNum <= selectedRange.end);
           const mark = marksByVerse.get(verseNum);
           const persistentColor = getVerseColor(mark?.color);
 
-          const bgClass = isHighlighted
-            ? "bg-amber-200"
-            : persistentColor
-              ? `${persistentColor.bgClass} hover:brightness-95`
-              : "hover:bg-amber-100 active:bg-amber-200";
+          const bgClass = isSelected
+            ? "bg-sky-200"
+            : isHighlighted
+              ? "bg-amber-200"
+              : persistentColor
+                ? `${persistentColor.bgClass} hover:brightness-95`
+                : "hover:bg-amber-100 active:bg-amber-200";
 
           return (
             <span
@@ -42,6 +56,9 @@ export function VerseList({ chapter, highlightedVerse, marksByVerse, onSelectVer
           );
         })}
       </p>
+      {selectionMode && (
+        <p className="mt-4 text-xs text-ink/40">Tocá los versículos que querés incluir en el análisis.</p>
+      )}
     </div>
   );
 }

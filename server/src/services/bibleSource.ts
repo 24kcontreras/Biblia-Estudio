@@ -34,7 +34,7 @@ export interface ChapterVerse {
  * (Tobías, Judit, Sabiduría, Eclesiástico, Baruc y 1-2 Macabeos), que es lo que en la práctica
  * distingue a una Biblia católica de una protestante.
  */
-const SPANISH_VERSIONS: BibleVersion[] = [
+export const SPANISH_VERSIONS: BibleVersion[] = [
   {
     id: "spa_r09",
     version: "Reina Valera 1909",

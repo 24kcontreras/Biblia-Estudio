@@ -3,20 +3,29 @@ import { Link } from "react-router-dom";
 import {
   createCollection,
   deleteCollection,
+  deleteSavedAnalysis,
+  deleteSavedChatAnswer,
   getChapter,
   getCollection,
   getCollections,
+  getSavedAnalyses,
+  getSavedChatAnswers,
   listMarks,
   removeVerseFromCollection,
   upsertMark,
   type CollectionDetail,
   type CollectionSummary,
   type CollectionVerseRef,
+  type SavedAnalysis,
+  type SavedChatAnswer,
   type VerseMark,
 } from "../api/client";
+import { CitationText } from "../components/CitationText";
 import { findBookBySlug } from "../data/bibleBooks";
+import { usePreferredVersion } from "../hooks/usePreferredVersion";
+import { downloadAnalysisPdf } from "../lib/generateAnalysisPdf";
 
-type Tab = "guardados" | "colecciones" | "memorizar";
+type Tab = "guardados" | "colecciones" | "memorizar" | "chat" | "analisis";
 type MarkFilter = "todos" | "favorito" | "color" | "nota" | "memorizar";
 
 function verseRef(v: { version: string; book: string; chapter: number; verse: number }) {
@@ -37,13 +46,15 @@ export function GuardadosPage() {
             ["guardados", "Guardados"],
             ["colecciones", "Colecciones"],
             ["memorizar", "Memorización"],
+            ["chat", "Chat"],
+            ["analisis", "Análisis"],
           ] as [Tab, string][]
         ).map(([key, label]) => (
           <button
             key={key}
             type="button"
             onClick={() => setTab(key)}
-            className={`rounded-md px-3 py-2 text-sm font-medium ${
+            className={`rounded-md px-3 py-2 text-sm font-medium transition-colors ${
               tab === key ? "bg-ink text-parchment" : "text-ink/70 hover:bg-ink/10"
             }`}
           >
@@ -55,6 +66,8 @@ export function GuardadosPage() {
       {tab === "guardados" && <GuardadosTab />}
       {tab === "colecciones" && <ColeccionesTab />}
       {tab === "memorizar" && <MemorizarTab />}
+      {tab === "chat" && <ChatGuardadoTab />}
+      {tab === "analisis" && <AnalisisGuardadoTab />}
     </div>
   );
 }
@@ -215,7 +228,7 @@ function ColeccionesTab() {
           type="button"
           onClick={handleCreate}
           disabled={!name.trim()}
-          className="shrink-0 rounded bg-ink px-4 py-2 text-sm font-medium text-parchment disabled:opacity-40"
+          className="shrink-0 rounded bg-ink px-4 py-2 text-sm font-medium text-parchment transition-transform active:scale-95 disabled:opacity-40 disabled:active:scale-100"
         >
           Crear
         </button>
@@ -287,6 +300,120 @@ function MemorizarTab() {
                 </button>
               </div>
               {text !== undefined && <p className="mt-2 text-sm leading-relaxed text-ink/80">{text}</p>}
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+function ChatGuardadoTab() {
+  const [version] = usePreferredVersion();
+  const [saved, setSaved] = useState<SavedChatAnswer[] | null>(null);
+
+  const reload = () => getSavedChatAnswers().then(({ saved }) => setSaved(saved));
+
+  useEffect(() => {
+    reload().catch(() => setSaved([]));
+  }, []);
+
+  const handleDelete = async (id: number) => {
+    await deleteSavedChatAnswer(id);
+    setSaved((prev) => (prev ?? []).filter((s) => s.id !== id));
+  };
+
+  return (
+    <div>
+      {saved === null && <p className="text-sm text-ink/60">Cargando...</p>}
+      {saved !== null && saved.length === 0 && (
+        <p className="text-sm text-ink/50">
+          No tienes respuestas guardadas todavía. Usá "Guardar" debajo de una respuesta del chat.
+        </p>
+      )}
+
+      <ul className="space-y-3">
+        {(saved ?? []).map((s) => (
+          <li key={s.id} className="rounded-lg bg-white p-3 shadow-sm">
+            <div className="flex items-start justify-between gap-2">
+              {s.question && <p className="text-xs font-medium text-ink/50">{s.question}</p>}
+              <button
+                type="button"
+                onClick={() => handleDelete(s.id)}
+                className="shrink-0 text-xs text-ink/40 transition-colors hover:text-red-700"
+              >
+                Eliminar
+              </button>
+            </div>
+            <div className="mt-1.5 text-sm leading-relaxed text-ink/80">
+              <CitationText text={s.answer} version={version} />
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function AnalisisGuardadoTab() {
+  const [saved, setSaved] = useState<SavedAnalysis[] | null>(null);
+
+  const reload = () => getSavedAnalyses().then(({ saved }) => setSaved(saved));
+
+  useEffect(() => {
+    reload().catch(() => setSaved([]));
+  }, []);
+
+  const handleDelete = async (id: number) => {
+    await deleteSavedAnalysis(id);
+    setSaved((prev) => (prev ?? []).filter((s) => s.id !== id));
+  };
+
+  return (
+    <div>
+      {saved === null && <p className="text-sm text-ink/60">Cargando...</p>}
+      {saved !== null && saved.length === 0 && (
+        <p className="text-sm text-ink/50">
+          No tienes análisis guardados todavía. Usá "💾 Guardar" dentro de un análisis de la Biblia.
+        </p>
+      )}
+
+      <ul className="space-y-2">
+        {(saved ?? []).map((s) => {
+          const passage = s.verseEnd > s.verseStart ? `${s.verseStart}-${s.verseEnd}` : `${s.verseStart}`;
+          const path = `/biblia/${s.version}/${s.book}/${s.chapter}?v=${s.verseStart}&vEnd=${s.verseEnd}`;
+          return (
+            <li key={s.id} className="rounded-lg bg-white p-3 shadow-sm">
+              <div className="flex items-center justify-between gap-2">
+                <Link to={path} className="text-sm font-medium hover:underline">
+                  {s.bookName} {s.chapter}:{passage}
+                </Link>
+                <div className="flex shrink-0 gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      downloadAnalysisPdf({
+                        bookName: s.bookName,
+                        chapter: s.chapter,
+                        verseStart: s.verseStart,
+                        verseEnd: s.verseEnd,
+                        versionName: s.version,
+                        analysis: s.analysis,
+                      })
+                    }
+                    className="text-xs text-ink/40 transition-colors hover:text-ink"
+                  >
+                    📄 PDF
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(s.id)}
+                    className="text-xs text-ink/40 transition-colors hover:text-red-700"
+                  >
+                    Eliminar
+                  </button>
+                </div>
+              </div>
             </li>
           );
         })}

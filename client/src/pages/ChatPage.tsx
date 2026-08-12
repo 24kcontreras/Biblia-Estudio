@@ -1,9 +1,14 @@
 import { useEffect, useRef, useState } from "react";
-import { getChatHistory, streamChat, type ChatMessage } from "../api/client";
+import { getChatHistory, saveChatAnswer, streamChat, type ChatMessage } from "../api/client";
 import { CitationText } from "../components/CitationText";
 import { usePreferredVersion } from "../hooks/usePreferredVersion";
 
 const SESSION_KEY = "biblechat:chatSession";
+
+const INDAGAR_PROMPT =
+  "Profundiza más en tu respuesta anterior: dame más detalle, ejemplos bíblicos adicionales y matices que no hayas mencionado.";
+const COMPARAR_PROMPT =
+  "Dame una segunda perspectiva teológica sobre lo mismo: ¿cómo entendería este pasaje o tema otra tradición cristiana (por ejemplo la católica, la ortodoxa, o una corriente protestante distinta a la que reflejaste)? Señala en qué coinciden y en qué difieren.";
 
 export function ChatPage() {
   const [version] = usePreferredVersion();
@@ -12,6 +17,7 @@ export function ChatPage() {
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [savedIndex, setSavedIndex] = useState<number | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -26,11 +32,11 @@ export function ChatPage() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const handleSend = async () => {
-    const text = input.trim();
+  const handleSend = async (override?: string) => {
+    const text = (override ?? input).trim();
     if (!text || sending) return;
 
-    setInput("");
+    if (!override) setInput("");
     setError(null);
     setSending(true);
     setMessages((prev) => [...prev, { role: "user", content: text }, { role: "assistant", content: "" }]);
@@ -58,6 +64,15 @@ export function ChatPage() {
     });
   };
 
+  const handleSave = async (index: number) => {
+    const answer = messages[index]?.content;
+    if (!answer) return;
+    const question = index > 0 && messages[index - 1].role === "user" ? messages[index - 1].content : null;
+    await saveChatAnswer(question, answer);
+    setSavedIndex(index);
+    setTimeout(() => setSavedIndex((prev) => (prev === index ? null : prev)), 2000);
+  };
+
   return (
     <div className="mx-auto flex h-full max-w-2xl flex-col px-3 sm:px-4">
       <div className="flex-1 space-y-4 overflow-y-auto py-4 sm:py-6">
@@ -67,13 +82,42 @@ export function ChatPage() {
           </p>
         )}
         {messages.map((m, i) => (
-          <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-            <div
-              className={`max-w-[88%] whitespace-pre-wrap rounded-lg px-3 py-2 text-sm leading-relaxed sm:max-w-[85%] ${
-                m.role === "user" ? "bg-ink text-parchment" : "bg-white shadow-sm"
-              }`}
-            >
-              {m.role === "assistant" ? <CitationText text={m.content} version={version} /> : m.content}
+          <div key={i} className={`flex animate-fade-in ${m.role === "user" ? "justify-end" : "justify-start"}`}>
+            <div className="max-w-[88%] sm:max-w-[85%]">
+              <div
+                className={`whitespace-pre-wrap rounded-lg px-3 py-2 text-sm leading-relaxed transition-shadow ${
+                  m.role === "user" ? "bg-ink text-parchment" : "bg-white shadow-sm"
+                }`}
+              >
+                {m.role === "assistant" ? <CitationText text={m.content} version={version} /> : m.content}
+              </div>
+              {m.role === "assistant" && m.content && !(sending && i === messages.length - 1) && (
+                <div className="mt-1.5 flex flex-wrap gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handleSave(i)}
+                    className="rounded-full border border-ink/15 px-2.5 py-1 text-xs text-ink/60 transition-colors hover:border-ink/30 hover:bg-ink/5 hover:text-ink"
+                  >
+                    {savedIndex === i ? "Guardado ✓" : "Guardar"}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={sending}
+                    onClick={() => void handleSend(INDAGAR_PROMPT)}
+                    className="rounded-full border border-ink/15 px-2.5 py-1 text-xs text-ink/60 transition-colors hover:border-ink/30 hover:bg-ink/5 hover:text-ink disabled:opacity-40"
+                  >
+                    Indagar más
+                  </button>
+                  <button
+                    type="button"
+                    disabled={sending}
+                    onClick={() => void handleSend(COMPARAR_PROMPT)}
+                    className="rounded-full border border-ink/15 px-2.5 py-1 text-xs text-ink/60 transition-colors hover:border-ink/30 hover:bg-ink/5 hover:text-ink disabled:opacity-40"
+                  >
+                    Comparar perspectiva
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         ))}
@@ -93,13 +137,13 @@ export function ChatPage() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Escribe tu pregunta..."
-          className="min-w-0 flex-1 rounded border border-ink/20 px-3 py-2.5 text-base focus:outline-none focus:ring-2 focus:ring-amber-400 sm:text-sm"
+          className="min-w-0 flex-1 rounded border border-ink/20 px-3 py-2.5 text-base transition-shadow focus:outline-none focus:ring-2 focus:ring-amber-400 sm:text-sm"
           disabled={sending}
         />
         <button
           type="submit"
           disabled={sending || !input.trim()}
-          className="shrink-0 rounded bg-ink px-4 py-2.5 text-sm font-medium text-parchment disabled:opacity-40"
+          className="shrink-0 rounded bg-ink px-4 py-2.5 text-sm font-medium text-parchment transition-transform active:scale-95 disabled:opacity-40 disabled:active:scale-100"
         >
           Enviar
         </button>

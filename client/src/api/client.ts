@@ -1,7 +1,7 @@
 export interface BibleBook {
   slug: string;
   name: string;
-  testament: "AT" | "NT";
+  testament: "AT" | "NT" | "DEU";
   order: number;
   chapterCount: number;
 }
@@ -36,9 +36,14 @@ export interface CrossReference {
 
 export interface VerseAnalysis {
   contexto: string;
+  analisisLiterario: string;
   exposicion: string;
+  palabrasClave: string;
   teologia: string;
+  panoramaCanonico: string;
   referenciasCruzadas: CrossReference[];
+  historiaInterpretacion: string;
+  aplicacion: string;
 }
 
 export interface ChatMessage {
@@ -99,6 +104,31 @@ export function getVersions(): Promise<BibleVersion[]> {
   return fetch("/api/bible/versions").then((r) => handle<BibleVersion[]>(r));
 }
 
+export interface SearchResult {
+  book: string;
+  chapter: number;
+  verse: number;
+  snippet: string;
+}
+
+export function searchBible(version: string, q: string): Promise<{ results: SearchResult[] }> {
+  const params = new URLSearchParams({ q, version });
+  return fetch(`/api/bible/search?${params.toString()}`).then((r) => handle(r));
+}
+
+export interface WordStudyEntry {
+  greek: string;
+  transliteration: string | null;
+  strongsNumber: string | null;
+  glossEs: string | null;
+  definition: string | null;
+  pronunciation: string | null;
+}
+
+export function getWordStudy(book: string, chapter: number, verse: number): Promise<{ words: WordStudyEntry[] }> {
+  return fetch(`/api/bible/word-study/${encodeURIComponent(book)}/${chapter}/${verse}`).then((r) => handle(r));
+}
+
 export function getChapter(version: string, book: string, chapter: number): Promise<ChapterResponse> {
   return fetch(`/api/bible/${encodeURIComponent(version)}/${encodeURIComponent(book)}/${chapter}`).then((r) =>
     handle<ChapterResponse>(r)
@@ -110,6 +140,7 @@ export function analyzeVerse(params: {
   book: string;
   chapter: number;
   verse: number;
+  verseEnd?: number;
 }): Promise<{ analysis: VerseAnalysis; cached: boolean }> {
   return fetch("/api/verse/analyze", {
     method: "POST",
@@ -118,8 +149,70 @@ export function analyzeVerse(params: {
   }).then((r) => handle<{ analysis: VerseAnalysis; cached: boolean }>(r));
 }
 
+export interface SavedAnalysis {
+  id: number;
+  version: string;
+  book: string;
+  bookName: string;
+  chapter: number;
+  verseStart: number;
+  verseEnd: number;
+  analysis: VerseAnalysis;
+  createdAt: string;
+}
+
+export function getSavedAnalyses(): Promise<{ saved: SavedAnalysis[] }> {
+  return fetch("/api/verse/analyze/saved").then((r) => handle(r));
+}
+
+export function saveAnalysis(params: {
+  version: string;
+  book: string;
+  chapter: number;
+  verseStart: number;
+  verseEnd: number;
+  analysis: VerseAnalysis;
+}): Promise<{ id: number }> {
+  return fetch("/api/verse/analyze/saved", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+  }).then((r) => handle(r));
+}
+
+export function deleteSavedAnalysis(id: number): Promise<void> {
+  return fetch(`/api/verse/analyze/saved/${id}`, { method: "DELETE" }).then((r) => {
+    if (!r.ok) throw new Error(`Error ${r.status}`);
+  });
+}
+
 export function getChatHistory(sessionId: string): Promise<{ messages: ChatMessage[] }> {
   return fetch(`/api/chat/${encodeURIComponent(sessionId)}`).then((r) => handle(r));
+}
+
+export interface SavedChatAnswer {
+  id: number;
+  question: string | null;
+  answer: string;
+  created_at: string;
+}
+
+export function getSavedChatAnswers(): Promise<{ saved: SavedChatAnswer[] }> {
+  return fetch("/api/chat/saved").then((r) => handle(r));
+}
+
+export function saveChatAnswer(question: string | null, answer: string): Promise<{ id: number }> {
+  return fetch("/api/chat/saved", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ question, answer }),
+  }).then((r) => handle(r));
+}
+
+export function deleteSavedChatAnswer(id: number): Promise<void> {
+  return fetch(`/api/chat/saved/${id}`, { method: "DELETE" }).then((r) => {
+    if (!r.ok) throw new Error(`Error ${r.status}`);
+  });
 }
 
 export interface ChatStreamHandlers {

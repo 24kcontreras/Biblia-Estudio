@@ -10,9 +10,14 @@ export interface CrossReference {
 
 export interface VerseAnalysis {
   contexto: string;
+  analisisLiterario: string;
   exposicion: string;
+  palabrasClave: string;
   teologia: string;
+  panoramaCanonico: string;
   referenciasCruzadas: CrossReference[];
+  historiaInterpretacion: string;
+  aplicacion: string;
 }
 
 export interface VerseAnalysisInput {
@@ -20,9 +25,11 @@ export interface VerseAnalysisInput {
   book: string;
   chapter: number;
   verse: number;
+  /** Último versículo del rango a analizar. Igual a `verse` cuando se analiza un solo versículo. */
+  verseEnd: number;
   verseText: string;
   contextVerses: { verse: number; text: string }[];
-  /** Extracto del comentario de Matthew Henry (dominio público) aplicable a este versículo, si existe. */
+  /** Extracto del comentario de Matthew Henry (dominio público) aplicable a este pasaje, si existe. */
   commentary?: string | null;
   /** Referencias cruzadas verificadas (dataset basado en Treasury of Scripture Knowledge), si existen. */
   verifiedCrossReferences?: { referencia: string; votos: number }[];

@@ -84,6 +84,36 @@ export const BOOK_CODES: BookCodes[] = [
   { slug: "apocalipsis", usfm: "REV", openBible: "Rev" },
 ];
 
-export const usfmToSlug = new Map(BOOK_CODES.map((b) => [b.usfm, b.slug]));
+/**
+ * Libros deuterocanónicos/apócrifos — solo disponibles en la versión spa_blm (la única de
+ * nuestras 8 versiones que los incluye). No tienen entrada en openbible.info ni en el comentario
+ * de Matthew Henry (fuentes protestantes), así que no llevan código openBible.
+ * Verificado contra bible.helloao.org/api/spa_blm/books.json.
+ */
+export const DEUTEROCANONICAL_CODES: { slug: string; usfm: string }[] = [
+  { slug: "tobit", usfm: "TOB" },
+  { slug: "judit", usfm: "JDT" },
+  { slug: "sabiduría", usfm: "WIS" },
+  { slug: "sirácide", usfm: "SIR" },
+  { slug: "baruc", usfm: "BAR" },
+  { slug: "1macabeos", usfm: "1MA" },
+  { slug: "2macabeos", usfm: "2MA" },
+  { slug: "3macabeos", usfm: "3MA" },
+  { slug: "4macabeos", usfm: "4MA" },
+  { slug: "estergriega", usfm: "ESG" },
+  { slug: "danielgriego", usfm: "DAG" },
+  { slug: "1esdras", usfm: "1ES" },
+  { slug: "2esdras", usfm: "2ES" },
+  { slug: "manasés", usfm: "MAN" },
+  { slug: "salmo151", usfm: "PS2" },
+];
+
+export const usfmToSlug = new Map([
+  ...BOOK_CODES.map((b): [string, string] => [b.usfm, b.slug]),
+  ...DEUTEROCANONICAL_CODES.map((b): [string, string] => [b.usfm, b.slug]),
+]);
 export const openBibleToSlug = new Map(BOOK_CODES.map((b) => [b.openBible, b.slug]));
-export const slugToUsfm = new Map(BOOK_CODES.map((b) => [b.slug, b.usfm]));
+export const slugToUsfm = new Map([
+  ...BOOK_CODES.map((b): [string, string] => [b.slug, b.usfm]),
+  ...DEUTEROCANONICAL_CODES.map((b): [string, string] => [b.slug, b.usfm]),
+]);

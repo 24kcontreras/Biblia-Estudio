@@ -3,7 +3,7 @@ export interface BibleBook {
   slug: string;
   /** Nombre para mostrar en español */
   name: string;
-  testament: "AT" | "NT";
+  testament: "AT" | "NT" | "DEU";
   /** Orden canónico 1-66 */
   order: number;
   chapterCount: number;
@@ -77,6 +77,23 @@ export const BIBLE_BOOKS: BibleBook[] = [
   { slug: "3juan", name: "3 Juan", testament: "NT", order: 64, chapterCount: 1 },
   { slug: "judas", name: "Judas", testament: "NT", order: 65, chapterCount: 1 },
   { slug: "apocalipsis", name: "Apocalipsis", testament: "NT", order: 66, chapterCount: 22 },
+
+  // Deuterocanónicos/apócrifos — solo disponibles en la versión spa_blm (ver bibleBookCodes.ts).
+  { slug: "tobit", name: "Tobit", testament: "DEU", order: 67, chapterCount: 14 },
+  { slug: "judit", name: "Judit", testament: "DEU", order: 68, chapterCount: 16 },
+  { slug: "sabiduría", name: "Sabiduría", testament: "DEU", order: 69, chapterCount: 19 },
+  { slug: "sirácide", name: "Sirácide", testament: "DEU", order: 70, chapterCount: 51 },
+  { slug: "baruc", name: "Baruc", testament: "DEU", order: 71, chapterCount: 6 },
+  { slug: "1macabeos", name: "1 Macabeos", testament: "DEU", order: 72, chapterCount: 16 },
+  { slug: "2macabeos", name: "2 Macabeos", testament: "DEU", order: 73, chapterCount: 15 },
+  { slug: "3macabeos", name: "3 Macabeos", testament: "DEU", order: 74, chapterCount: 7 },
+  { slug: "4macabeos", name: "4 Macabeos", testament: "DEU", order: 75, chapterCount: 18 },
+  { slug: "estergriega", name: "Ester griega", testament: "DEU", order: 76, chapterCount: 10 },
+  { slug: "danielgriego", name: "Daniel griego", testament: "DEU", order: 77, chapterCount: 14 },
+  { slug: "1esdras", name: "1 Esdras", testament: "DEU", order: 78, chapterCount: 9 },
+  { slug: "2esdras", name: "2 Esdras", testament: "DEU", order: 79, chapterCount: 16 },
+  { slug: "manasés", name: "Manasés", testament: "DEU", order: 80, chapterCount: 1 },
+  { slug: "salmo151", name: "Salmo 151", testament: "DEU", order: 81, chapterCount: 1 },
 ];
 
 const BY_SLUG = new Map(BIBLE_BOOKS.map((b) => [b.slug, b]));

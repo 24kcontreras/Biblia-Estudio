@@ -21,6 +21,7 @@ interface Props {
   mark: VerseMark | undefined;
   onClose: () => void;
   onAnalyze: () => void;
+  onWordStudy: () => void;
   onMarkChange: (mark: VerseMark | null) => void;
 }
 
@@ -41,6 +42,7 @@ export function VerseActionMenu({
   mark,
   onClose,
   onAnalyze,
+  onWordStudy,
   onMarkChange,
 }: Props) {
   const [subView, setSubView] = useState<SubView>("menu");
@@ -149,9 +151,9 @@ export function VerseActionMenu({
 
   return (
     <>
-      <div className="fixed inset-0 z-30 bg-black/30 lg:hidden" onClick={onClose} />
+      <div className="fixed inset-0 z-30 animate-fade-in bg-black/30 lg:hidden" onClick={onClose} />
       <aside
-        className="fixed inset-x-0 bottom-0 z-40 flex max-h-[80dvh] w-full flex-col rounded-t-2xl
+        className="fixed inset-x-0 bottom-0 z-40 flex max-h-[80dvh] w-full animate-slide-up flex-col rounded-t-2xl
         border-t border-ink/10 bg-white shadow-2xl lg:static lg:z-auto lg:h-full lg:max-h-none
         lg:w-full lg:max-w-md lg:rounded-none lg:border-l lg:border-t-0 lg:shadow-none"
       >
@@ -186,6 +188,7 @@ export function VerseActionMenu({
 
               <div className="grid grid-cols-3 gap-2">
                 <ActionButton icon="✨" label="Analizar con IA" onClick={onAnalyze} />
+                <ActionButton icon="Ω" label="Estudio de palabras" onClick={onWordStudy} />
                 <ActionButton icon="📋" label="Copiar" onClick={handleCopy} />
                 <ActionButton icon="🔗" label="Compartir" onClick={handleShare} />
                 <ActionButton icon="⇄" label="Comparar" onClick={openComparar} />
@@ -345,7 +348,7 @@ function ActionButton({
     <button
       type="button"
       onClick={onClick}
-      className={`flex flex-col items-center gap-1 rounded-lg px-2 py-3 text-xs hover:bg-ink/10 ${
+      className={`flex flex-col items-center gap-1 rounded-lg px-2 py-3 text-xs transition-all duration-150 hover:bg-ink/10 active:scale-90 ${
         active ? "bg-amber-100 text-amber-900" : "text-ink/80"
       }`}
     >

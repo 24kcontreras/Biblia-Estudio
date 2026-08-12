@@ -12,6 +12,49 @@ interface MessageRow {
   content: string;
 }
 
+interface SavedChatAnswerRow {
+  id: number;
+  question: string | null;
+  answer: string;
+  created_at: string;
+}
+
+chatRouter.get(
+  "/saved",
+  asyncHandler(async (_req, res) => {
+    const rows = (await db.all(
+      "SELECT id, question, answer, created_at FROM saved_chat_answers ORDER BY created_at DESC"
+    )) as SavedChatAnswerRow[];
+    res.json({ saved: rows });
+  })
+);
+
+chatRouter.post(
+  "/saved",
+  asyncHandler(async (req, res) => {
+    const { question, answer } = req.body ?? {};
+    if (typeof answer !== "string" || !answer.trim()) {
+      res.status(400).json({ error: "Falta la respuesta a guardar." });
+      return;
+    }
+
+    const result = await db.run(
+      "INSERT INTO saved_chat_answers (question, answer) VALUES (?, ?)",
+      typeof question === "string" && question.trim() ? question : null,
+      answer
+    );
+    res.status(201).json({ id: Number(result.lastInsertRowid) });
+  })
+);
+
+chatRouter.delete(
+  "/saved/:id",
+  asyncHandler(async (req, res) => {
+    await db.run("DELETE FROM saved_chat_answers WHERE id = ?", Number(req.params.id));
+    res.status(204).end();
+  })
+);
+
 chatRouter.get(
   "/:sessionId",
   asyncHandler(async (req, res) => {

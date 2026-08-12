@@ -2,6 +2,51 @@
 @tailwind components;
 @tailwind utilities;
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   @apply bg-parchment text-ink;
+}
+
+@layer base {
+  a,
+  button {
+    @apply transition-colors duration-150 ease-out;
+  }
+
+  ::selection {
+    @apply bg-amber-200;
+  }
+}
+
+@layer utilities {
+  .animate-slide-up {
+    animation: slide-up 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.18s ease-out;
+  }
+}
+
+@keyframes slide-up {
+  from {
+    transform: translateY(16px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
