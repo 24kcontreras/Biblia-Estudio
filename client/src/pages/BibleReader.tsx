@@ -197,14 +197,22 @@ export function BibleReader() {
           <button
             type="button"
             onClick={toggleSelectionMode}
-            className={`rounded p-2 text-lg leading-none transition-colors ${
-              selectionMode ? "bg-ink text-parchment" : "hover:bg-ink/10"
-            }`}
+            className="flex items-center justify-center rounded p-2 transition-colors hover:bg-ink/10"
             aria-label="Seleccionar varios versículos"
             aria-pressed={selectionMode}
             title="Seleccionar varios versículos para analizar juntos"
           >
-            {selectionMode ? "☑️" : "▢"}
+            <span
+              className={`flex h-5 w-5 items-center justify-center rounded border-2 transition-colors ${
+                selectionMode ? "border-ink bg-ink text-parchment" : "border-ink/40"
+              }`}
+            >
+              {selectionMode && (
+                <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 8.5l3.5 3.5L13 4.5" />
+                </svg>
+              )}
+            </span>
           </button>
           <button
             type="button"

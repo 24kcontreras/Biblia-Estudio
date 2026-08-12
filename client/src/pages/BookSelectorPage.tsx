@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { VersionSelector } from "../components/VersionSelector";
 import { BIBLE_BOOKS, type BibleBookMeta } from "../data/bibleBooks";
 import { usePreferredVersion } from "../hooks/usePreferredVersion";
 
@@ -9,12 +10,17 @@ const SECTIONS: { testament: BibleBookMeta["testament"]; label: string }[] = [
 ];
 
 export function BookSelectorPage() {
-  const [version] = usePreferredVersion();
+  const [version, setVersion] = usePreferredVersion();
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-8 sm:px-6">
-      <h1 className="mb-1 font-serif text-2xl font-semibold">¿Qué quieres leer?</h1>
-      <p className="mb-6 text-sm text-ink/50">Elige un libro para empezar.</p>
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="mb-1 font-serif text-2xl font-semibold">¿Qué quieres leer?</h1>
+          <p className="text-sm text-ink/50">Elige un libro para empezar.</p>
+        </div>
+        <VersionSelector version={version} onChange={setVersion} />
+      </div>
 
       {SECTIONS.map(({ testament, label }) => {
         const books = BIBLE_BOOKS.filter((b) => b.testament === testament);
