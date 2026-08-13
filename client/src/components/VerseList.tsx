@@ -1,8 +1,5 @@
-import { useState } from "react";
 import type { ChapterResponse, ChapterVerse, VerseMark } from "../api/client";
-import { ChosenEpisodesPopover } from "./ChosenEpisodesPopover";
 import { getVerseColor } from "../data/verseColors";
-import { getChosenEpisodesForVerse } from "../data/theChosenReferences";
 
 interface Props {
   chapter: ChapterResponse;
@@ -23,11 +20,6 @@ export function VerseList({
   selectionMode,
   selectedRange,
 }: Props) {
-  const [chosenVerse, setChosenVerse] = useState<number | null>(null);
-  const chosenEpisodes = chosenVerse
-    ? getChosenEpisodesForVerse(chapter.book.slug, chapter.chapter, chosenVerse)
-    : [];
-
   return (
     <div className="mx-auto max-w-2xl px-4 py-6 sm:px-6 sm:py-8">
       <h1 className="mb-4 font-serif text-xl font-semibold sm:text-2xl">
@@ -40,7 +32,6 @@ export function VerseList({
           const isSelected = Boolean(selectedRange && verseNum >= selectedRange.start && verseNum <= selectedRange.end);
           const mark = marksByVerse.get(verseNum);
           const persistentColor = getVerseColor(mark?.color);
-          const hasChosenEpisode = getChosenEpisodesForVerse(chapter.book.slug, chapter.chapter, verseNum).length > 0;
 
           const bgClass = isSelected
             ? "bg-sky-200"
@@ -60,35 +51,13 @@ export function VerseList({
               <sup className="mr-0.5 text-xs font-semibold text-amber-800">{v.verse}</sup>
               {v.text}
               {mark?.isFavorite && <span className="ml-0.5 align-super text-xs">★</span>}
-              {mark?.note && <span className="ml-0.5 align-super text-xs">📝</span>}
-              {hasChosenEpisode && (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setChosenVerse(verseNum);
-                  }}
-                  className="ml-0.5 align-super text-xs"
-                  aria-label="Ver en The Chosen"
-                  title="Ver en The Chosen"
-                >
-                  🎬
-                </button>
-              )}{" "}
+              {mark?.note && <span className="ml-0.5 align-super text-xs">📝</span>}{" "}
             </span>
           );
         })}
       </p>
       {selectionMode && (
         <p className="mt-4 text-xs text-ink/40">Toca los versículos que quieres incluir en el análisis.</p>
-      )}
-
-      {chosenVerse && chosenEpisodes.length > 0 && (
-        <ChosenEpisodesPopover
-          reference={`${chapter.book.name} ${chapter.chapter}:${chosenVerse}`}
-          episodes={chosenEpisodes}
-          onClose={() => setChosenVerse(null)}
-        />
       )}
     </div>
   );
