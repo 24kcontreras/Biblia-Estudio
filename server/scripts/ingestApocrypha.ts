@@ -1,12 +1,15 @@
 /**
  * Script de ingesta de una sola corrida:
- *   npm run ingest:apocrypha -w server
+ *   npm run ingest:apocrypha -w server                    (todos los libros)
+ *   npm run ingest:apocrypha -w server -- bernabe          (solo uno o varios, por slug)
  *
  * Descarga cuatro textos apócrifos/pseudoepígrafos de dominio público desde Wikisource (en
- * inglés, no hay traducción libre al español) y los traduce al español con Gemini antes de
- * cargarlos. Estos textos NO son canon de ninguna tradición cristiana mayoritaria (solo Enoc lo
- * es en la iglesia ortodoxa etíope) — se muestran en una sección aparte de la app, distinta de
- * los libros deuterocanónicos (que sí son canon católico/ortodoxo).
+ * inglés, no hay traducción libre al español) y los traduce al español con un modelo local de
+ * Ollama (gemma4:12b) antes de cargarlos — evita la cuota/costo de un proveedor hosted para esta
+ * traducción de una sola vez. Requiere Ollama corriendo en localhost:11434 con el modelo bajado
+ * (`ollama pull gemma4:12b`). Estos textos NO son canon de ninguna tradición cristiana mayoritaria
+ * (solo Enoc lo es en la iglesia ortodoxa etíope) — se muestran en una sección aparte de la app,
+ * distinta de los libros deuterocanónicos (que sí son canon católico/ortodoxo).
  *
  * Fuentes:
  *  - Libro de Enoc: traducción de R.H. Charles (1917), en.wikisource.org.
@@ -14,18 +17,11 @@
  *  - Pastor de Hermas: traducción de J.B. Lightfoot (s. XIX), en.wikisource.org.
  */
 import "dotenv/config";
-import { GoogleGenAI } from "@google/genai";
 import { db, initDb } from "../src/db.js";
 
 const WIKISOURCE_API = "https://en.wikisource.org/w/api.php";
-const MODEL = "gemini-3.6-flash";
-// El tier gratis de Gemini limita a 20 solicitudes/minuto — se traduce en serie con este delay
-// entre pedidos (≈18/min) para no pisar la cuota en vez de descubrirlo a los golpes con reintentos.
-const TRANSLATE_DELAY_MS = 3300;
-
-const apiKey = process.env.GEMINI_API_KEY;
-if (!apiKey) throw new Error("Falta GEMINI_API_KEY en server/.env.");
-const genai = new GoogleGenAI({ apiKey });
+const OLLAMA_URL = "http://localhost:11434/api/chat";
+const OLLAMA_MODEL = "gemma4:12b";
 
 interface RawChapter {
   title: string;
@@ -143,23 +139,36 @@ const WORKS: Work[] = [
   },
 ];
 
+const OLLAMA_SYSTEM_PROMPT =
+  "Eres un traductor experto de textos religiosos antiguos del inglés al español. Traduce el texto que se te da de forma clara, fiel y fluida, en español neutro. Mantén la numeración de versículos si el texto la tiene. No agregues comentarios, notas ni interpretación propia — solo la traducción. No incluyas los marcadores de crítica textual tipo ⌈ ⌉ del original, simplemente traduce el texto que encierran como parte normal de la oración.";
+
 async function translateToSpanish(englishText: string, attempt = 1): Promise<string> {
   try {
-    const interaction = await genai.interactions.create({
-      model: MODEL,
-      system_instruction:
-        "Eres un traductor experto de textos religiosos antiguos del inglés al español. Traduce el texto que se te da de forma clara, fiel y fluida, en español neutro. Mantén la numeración de versículos si el texto la tiene. No agregues comentarios, notas ni interpretación propia — solo la traducción. No incluyas los marcadores de crítica textual tipo ⌈ ⌉ del original, simplemente traduce el texto que encierran como parte normal de la oración.",
-      input: englishText,
+    const res = await fetch(OLLAMA_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: OLLAMA_MODEL,
+        stream: false,
+        // gemma4 es un modelo "thinking": sin este flag, a veces vuelca TODA la respuesta en el
+        // campo message.thinking (razonamiento interno) y deja message.content vacío — se pierde
+        // en silencio y el capítulo queda sin traducir. Con think:false responde directo en content.
+        think: false,
+        messages: [
+          { role: "system", content: OLLAMA_SYSTEM_PROMPT },
+          { role: "user", content: englishText },
+        ],
+      }),
     });
-    return interaction.output_text?.trim() ?? "";
+    if (!res.ok) throw new Error(`Ollama devolvió ${res.status}: ${(await res.text()).slice(0, 300)}`);
+    const data = (await res.json()) as { message?: { content?: string } };
+    const content = data.message?.content?.trim() ?? "";
+    if (!content) throw new Error("Ollama devolvió una traducción vacía.");
+    return content;
   } catch (err) {
-    const message = (err as Error).message ?? "";
-    const isRateLimit = message.includes("429") || /quota/i.test(message);
-    if (isRateLimit && attempt <= 6) {
-      const retryMatch = /retry in ([\d.]+)s/i.exec(message);
-      const waitMs = retryMatch ? Math.ceil(Number(retryMatch[1]) * 1000) + 1000 : attempt * 10000;
-      console.log(`  (cuota de Gemini alcanzada, esperando ${Math.round(waitMs / 1000)}s antes de reintentar...)`);
-      await sleep(waitMs);
+    if (attempt <= 3) {
+      console.log(`  (fallo hablando con Ollama: ${(err as Error).message} — reintentando en 5s... intento ${attempt + 1})`);
+      await sleep(5000);
       return translateToSpanish(englishText, attempt + 1);
     }
     throw err;
@@ -172,15 +181,16 @@ async function translateChapters(chapters: RawChapter[]): Promise<RawChapter[]> 
 
   for (let i = 0; i < chapters.length; i++) {
     const chapter = chapters[i];
+    const started = Date.now();
     try {
       const content = await translateToSpanish(chapter.content);
       results[i] = { title: chapter.title, content: content || chapter.content };
+      console.log(`  [${i + 1}/${chapters.length}] "${chapter.title}" traducido (${Math.round((Date.now() - started) / 1000)}s)`);
     } catch (err) {
       failures++;
       console.warn(`  Error traduciendo "${chapter.title}" (queda en inglés):`, (err as Error).message);
       results[i] = chapter;
     }
-    if (i < chapters.length - 1) await sleep(TRANSLATE_DELAY_MS);
   }
 
   if (failures > 0) {
@@ -190,12 +200,19 @@ async function translateChapters(chapters: RawChapter[]): Promise<RawChapter[]> 
 }
 
 async function main(): Promise<void> {
+  const requestedSlugs = process.argv.slice(2);
+  const works = requestedSlugs.length ? WORKS.filter((w) => requestedSlugs.includes(w.slug)) : WORKS;
+  if (requestedSlugs.length && works.length !== requestedSlugs.length) {
+    const known = WORKS.map((w) => w.slug).join(", ");
+    throw new Error(`Slug desconocido en [${requestedSlugs.join(", ")}]. Válidos: ${known}`);
+  }
+
   await initDb();
 
-  for (const work of WORKS) {
+  for (const work of works) {
     console.log(`[${work.slug}] Descargando desde Wikisource...`);
     const rawChapters = await work.fetch();
-    console.log(`[${work.slug}] ${rawChapters.length} capítulos descargados. Traduciendo con IA...`);
+    console.log(`[${work.slug}] ${rawChapters.length} capítulos descargados. Traduciendo con ${OLLAMA_MODEL}...`);
 
     const translated = await translateChapters(rawChapters);
 
