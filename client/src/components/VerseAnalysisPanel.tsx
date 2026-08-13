@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { analyzeVerse, saveAnalysis, type VerseAnalysis } from "../api/client";
 import { downloadAnalysisPdf } from "../lib/generateAnalysisPdf";
+import { BookLoader } from "./BookLoader";
 import { CitationText } from "./CitationText";
 
 interface Props {
@@ -41,18 +42,30 @@ export function VerseAnalysisPanel({ version, bookSlug, bookName, chapter, verse
     });
   };
 
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
+
   useEffect(() => {
     let cancelled = false;
     setState({ status: "loading" });
+    setStatusMessage(null);
     setSaved(false);
 
-    analyzeVerse({ version, book: bookSlug, chapter, verse, verseEnd: rangeEnd })
-      .then(({ analysis }) => {
-        if (!cancelled) setState({ status: "ready", analysis });
-      })
-      .catch((err: Error) => {
-        if (!cancelled) setState({ status: "error", message: err.message });
-      });
+    analyzeVerse(
+      { version, book: bookSlug, chapter, verse, verseEnd: rangeEnd },
+      {
+        onStatus: (message) => {
+          if (!cancelled) setStatusMessage(message);
+        },
+        onResult: ({ analysis }) => {
+          if (!cancelled) setState({ status: "ready", analysis });
+        },
+        onError: (message) => {
+          if (!cancelled) setState({ status: "error", message });
+        },
+      }
+    ).catch((err: Error) => {
+      if (!cancelled) setState({ status: "error", message: err.message });
+    });
 
     return () => {
       cancelled = true;
@@ -103,9 +116,9 @@ export function VerseAnalysisPanel({ version, bookSlug, bookName, chapter, verse
 
         <div className="flex-1 overflow-y-auto px-4 py-4">
           {state.status === "loading" && (
-            <p className="text-sm text-ink/60">
-              {rangeEnd > verse ? "Analizando pasaje..." : "Analizando versículo..."}
-            </p>
+            <BookLoader
+              label={statusMessage ?? (rangeEnd > verse ? "Analizando pasaje..." : "Analizando versículo...")}
+            />
           )}
 
           {state.status === "error" && (

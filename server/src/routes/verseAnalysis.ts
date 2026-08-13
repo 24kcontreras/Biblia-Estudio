@@ -168,31 +168,53 @@ verseAnalysisRouter.post("/", async (req, res, next) => {
     const commentary = await getCommentary(bookMeta.slug, chapterNum, verseStart, verseEnd);
     const verifiedCrossReferences = await getVerifiedCrossReferences(bookMeta.slug, chapterNum, verseStart, verseEnd);
 
-    const analysis = await provider.analyzeVerse({
-      versionName: version,
-      book: bookMeta.name,
-      chapter: chapterNum,
-      verse: verseStart,
-      verseEnd,
-      verseText,
-      contextVerses,
-      commentary,
-      verifiedCrossReferences,
-    });
+    // A partir de acá la respuesta es streaming (SSE): analyzeVerse puede tardar, y si el proveedor
+    // principal falla queremos avisar ("event: status") antes de tener el resultado final del respaldo.
+    res.setHeader("Content-Type", "text/event-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    res.setHeader("Connection", "keep-alive");
+    res.flushHeaders();
 
-    await db.run(
-      `INSERT INTO verse_analysis_cache_v2 (version, book, chapter, verse_start, verse_end, analysis_json)
-       VALUES (?, ?, ?, ?, ?, ?)
-       ON CONFLICT(version, book, chapter, verse_start, verse_end) DO UPDATE SET analysis_json = excluded.analysis_json`,
-      version,
-      bookMeta.slug,
-      chapterNum,
-      verseStart,
-      verseEnd,
-      JSON.stringify(analysis)
-    );
+    try {
+      const onFallback = (message: string) => {
+        res.write(`event: status\ndata: ${JSON.stringify({ message })}\n\n`);
+      };
 
-    res.json({ analysis, cached: false });
+      const analysis = await provider.analyzeVerse(
+        {
+          versionName: version,
+          book: bookMeta.name,
+          chapter: chapterNum,
+          verse: verseStart,
+          verseEnd,
+          verseText,
+          contextVerses,
+          commentary,
+          verifiedCrossReferences,
+        },
+        onFallback
+      );
+
+      await db.run(
+        `INSERT INTO verse_analysis_cache_v2 (version, book, chapter, verse_start, verse_end, analysis_json)
+         VALUES (?, ?, ?, ?, ?, ?)
+         ON CONFLICT(version, book, chapter, verse_start, verse_end) DO UPDATE SET analysis_json = excluded.analysis_json`,
+        version,
+        bookMeta.slug,
+        chapterNum,
+        verseStart,
+        verseEnd,
+        JSON.stringify(analysis)
+      );
+
+      res.write(`event: result\ndata: ${JSON.stringify({ analysis, cached: false })}\n\n`);
+    } catch (err) {
+      console.error(err);
+      const message = err instanceof BibleSourceError ? err.message : "No se pudo generar el análisis. Intenta de nuevo.";
+      res.write(`event: error\ndata: ${JSON.stringify({ error: message })}\n\n`);
+    } finally {
+      res.end();
+    }
   } catch (err) {
     if (err instanceof BibleSourceError) {
       return res.status(err.statusCode).json({ error: err.message });

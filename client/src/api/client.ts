@@ -135,18 +135,46 @@ export function getChapter(version: string, book: string, chapter: number): Prom
   );
 }
 
-export function analyzeVerse(params: {
-  version: string;
-  book: string;
-  chapter: number;
-  verse: number;
-  verseEnd?: number;
-}): Promise<{ analysis: VerseAnalysis; cached: boolean }> {
-  return fetch("/api/verse/analyze", {
+export interface AnalyzeVerseResult {
+  analysis: VerseAnalysis;
+  cached: boolean;
+}
+
+export interface AnalyzeVerseHandlers {
+  onResult: (result: AnalyzeVerseResult) => void;
+  onError: (message: string) => void;
+  /** Aviso transitorio (ej. "Reintentando con IA de respaldo...") mientras se espera la respuesta. */
+  onStatus?: (message: string) => void;
+}
+
+/** Un análisis ya cacheado vuelve como JSON normal; uno nuevo se stremea por SSE (puede avisar un reintento). */
+export async function analyzeVerse(
+  params: { version: string; book: string; chapter: number; verse: number; verseEnd?: number },
+  handlers: AnalyzeVerseHandlers
+): Promise<void> {
+  const res = await fetch("/api/verse/analyze", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(params),
-  }).then((r) => handle<{ analysis: VerseAnalysis; cached: boolean }>(r));
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}) as { error?: string });
+    handlers.onError(body.error ?? `Error ${res.status}`);
+    return;
+  }
+
+  if (res.headers.get("content-type")?.includes("application/json")) {
+    handlers.onResult((await res.json()) as AnalyzeVerseResult);
+    return;
+  }
+
+  await consumeSSE(res, (eventType, data) => {
+    const parsed = JSON.parse(data);
+    if (eventType === "result") handlers.onResult(parsed as AnalyzeVerseResult);
+    else if (eventType === "error") handlers.onError(parsed.error as string);
+    else if (eventType === "status") handlers.onStatus?.(parsed.message as string);
+  });
 }
 
 export interface SavedAnalysis {
@@ -215,28 +243,9 @@ export function deleteSavedChatAnswer(id: number): Promise<void> {
   });
 }
 
-export interface ChatStreamHandlers {
-  onChunk: (text: string) => void;
-  onDone: (sessionId: string) => void;
-  onError: (message: string) => void;
-}
-
-export async function streamChat(
-  message: string,
-  sessionId: string | null,
-  handlers: ChatStreamHandlers
-): Promise<void> {
-  const res = await fetch("/api/chat", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ message, sessionId }),
-  });
-
-  if (!res.ok || !res.body) {
-    const body = await res.json().catch(() => ({}) as { error?: string });
-    handlers.onError(body.error ?? `Error ${res.status}`);
-    return;
-  }
+/** Lee un stream SSE (`event: ...\ndata: ...\n\n`) y llama a `onEvent` por cada evento completo recibido. */
+async function consumeSSE(res: Response, onEvent: (eventType: string, data: string) => void): Promise<void> {
+  if (!res.body) throw new Error("El servidor no devolvió un stream de respuesta.");
 
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
@@ -257,13 +266,43 @@ export async function streamChat(
         if (line.startsWith("event: ")) eventType = line.slice(7);
         else if (line.startsWith("data: ")) data = line.slice(6);
       }
-      if (!data) continue;
-      const parsed = JSON.parse(data);
-      if (eventType === "done") handlers.onDone(parsed.sessionId as string);
-      else if (eventType === "error") handlers.onError(parsed.error as string);
-      else handlers.onChunk(parsed.text as string);
+      if (data) onEvent(eventType, data);
     }
   }
+}
+
+export interface ChatStreamHandlers {
+  onChunk: (text: string) => void;
+  onDone: (sessionId: string) => void;
+  onError: (message: string) => void;
+  /** Aviso transitorio (ej. "Reintentando con IA de respaldo...") mientras se espera la respuesta. */
+  onStatus?: (message: string) => void;
+}
+
+export async function streamChat(
+  message: string,
+  sessionId: string | null,
+  handlers: ChatStreamHandlers
+): Promise<void> {
+  const res = await fetch("/api/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message, sessionId }),
+  });
+
+  if (!res.ok || !res.body) {
+    const body = await res.json().catch(() => ({}) as { error?: string });
+    handlers.onError(body.error ?? `Error ${res.status}`);
+    return;
+  }
+
+  await consumeSSE(res, (eventType, data) => {
+    const parsed = JSON.parse(data);
+    if (eventType === "done") handlers.onDone(parsed.sessionId as string);
+    else if (eventType === "error") handlers.onError(parsed.error as string);
+    else if (eventType === "status") handlers.onStatus?.(parsed.message as string);
+    else handlers.onChunk(parsed.text as string);
+  });
 }
 
 export function getChapterMarks(version: string, book: string, chapter: number): Promise<{ marks: VerseMark[] }> {

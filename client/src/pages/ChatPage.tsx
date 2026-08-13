@@ -16,6 +16,7 @@ export function ChatPage() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [savedIndex, setSavedIndex] = useState<number | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -38,26 +39,31 @@ export function ChatPage() {
 
     if (!override) setInput("");
     setError(null);
+    setStatusMessage(null);
     setSending(true);
     setMessages((prev) => [...prev, { role: "user", content: text }, { role: "assistant", content: "" }]);
 
     await streamChat(text, sessionId, {
       onChunk: (chunk) => {
+        setStatusMessage(null);
         setMessages((prev) => {
           const next = [...prev];
           next[next.length - 1] = { role: "assistant", content: next[next.length - 1].content + chunk };
           return next;
         });
       },
+      onStatus: (message) => setStatusMessage(message),
       onDone: (newSessionId) => {
         if (newSessionId !== sessionId) {
           localStorage.setItem(SESSION_KEY, newSessionId);
           setSessionId(newSessionId);
         }
+        setStatusMessage(null);
         setSending(false);
       },
       onError: (message) => {
         setError(message);
+        setStatusMessage(null);
         setSending(false);
         setMessages((prev) => (prev[prev.length - 1]?.content === "" ? prev.slice(0, -1) : prev));
       },
@@ -89,7 +95,13 @@ export function ChatPage() {
                   m.role === "user" ? "bg-ink text-parchment" : "bg-white shadow-sm"
                 }`}
               >
-                {m.role === "assistant" ? <CitationText text={m.content} version={version} /> : m.content}
+                {m.role === "assistant" && !m.content && sending && i === messages.length - 1 && statusMessage ? (
+                  <span className="italic text-ink/50">{statusMessage}</span>
+                ) : m.role === "assistant" ? (
+                  <CitationText text={m.content} version={version} />
+                ) : (
+                  m.content
+                )}
               </div>
               {m.role === "assistant" && m.content && !(sending && i === messages.length - 1) && (
                 <div className="mt-1.5 flex flex-wrap gap-1.5">

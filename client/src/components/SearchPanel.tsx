@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { searchBible, type SearchResult } from "../api/client";
+import { BookLoader } from "./BookLoader";
 import { findBookBySlug } from "../data/bibleBooks";
 
 const MATCH_START = "";
@@ -81,7 +82,7 @@ export function SearchPanel({ version, onClose }: Props) {
           {query.trim().length < 2 && (
             <p className="p-3 text-sm text-ink/50">Escribe al menos 2 letras para buscar.</p>
           )}
-          {loading && <p className="p-3 text-sm text-ink/50">Buscando...</p>}
+          {loading && <BookLoader label="Buscando..." />}
           {!loading && results !== null && results.length === 0 && (
             <p className="p-3 text-sm text-ink/50">Sin resultados en esta versión.</p>
           )}

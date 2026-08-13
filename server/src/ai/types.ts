@@ -36,8 +36,9 @@ export interface VerseAnalysisInput {
 }
 
 export interface AIProvider {
-  streamChat(messages: ChatMessage[]): AsyncGenerator<string, void, unknown>;
-  analyzeVerse(input: VerseAnalysisInput): Promise<VerseAnalysis>;
+  /** `onFallback` se llama (solo en el proveedor con respaldo) cuando el principal falla y se reintenta con Groq. */
+  streamChat(messages: ChatMessage[], onFallback?: (message: string) => void): AsyncGenerator<string, void, unknown>;
+  analyzeVerse(input: VerseAnalysisInput, onFallback?: (message: string) => void): Promise<VerseAnalysis>;
 }
 
 /** Se lanza cuando falta configuración necesaria para hablar con el proveedor de IA (ej. API key). */

@@ -112,7 +112,10 @@ chatRouter.post(
 
     let fullText = "";
     try {
-      for await (const chunk of provider.streamChat(messages)) {
+      const onFallback = (message: string) => {
+        res.write(`event: status\ndata: ${JSON.stringify({ message })}\n\n`);
+      };
+      for await (const chunk of provider.streamChat(messages, onFallback)) {
         fullText += chunk;
         res.write(`data: ${JSON.stringify({ text: chunk })}\n\n`);
       }
