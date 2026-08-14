@@ -133,6 +133,14 @@ const SCHEMA_STATEMENTS = [
     content TEXT NOT NULL,
     PRIMARY KEY (work_slug, chapter_number)
   )`,
+  `CREATE TABLE IF NOT EXISTS local_bible_text (
+    version TEXT NOT NULL,
+    book TEXT NOT NULL,
+    chapter INTEGER NOT NULL,
+    verse INTEGER NOT NULL,
+    text TEXT NOT NULL,
+    PRIMARY KEY (version, book, chapter, verse)
+  )`,
 ];
 
 let initPromise: Promise<void> | undefined;

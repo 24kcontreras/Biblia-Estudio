@@ -1,12 +1,24 @@
 interface Props {
   label?: string;
+  /** "sm" = versión chica en línea (ej. dentro de una burbuja de chat). Default = panel completo. */
+  size?: "default" | "sm";
 }
 
-/** Animación de un libro abriéndose y pasando página, para estados de carga (búsqueda, análisis IA). */
-export function BookLoader({ label }: Props) {
+/** Animación de un libro abriéndose y pasando página, para estados de carga (búsqueda, análisis IA, chat). */
+export function BookLoader({ label, size = "default" }: Props) {
+  const isSmall = size === "sm";
+
   return (
-    <div className="flex flex-col items-center justify-center gap-4 py-8" role="status" aria-live="polite">
-      <div className="relative h-14 w-20" style={{ perspective: "400px" }}>
+    <div
+      className={
+        isSmall
+          ? "flex items-center gap-2"
+          : "flex flex-col items-center justify-center gap-4 py-8"
+      }
+      role="status"
+      aria-live="polite"
+    >
+      <div className={isSmall ? "relative h-6 w-9 shrink-0" : "relative h-14 w-20"} style={{ perspective: "400px" }}>
         {/* Tapa/lomo */}
         <div className="absolute inset-x-0 bottom-0 h-1.5 rounded-b-sm bg-amber-900/80" />
         <div className="absolute left-1/2 top-0 h-full w-[3px] -translate-x-1/2 bg-amber-900/70" />
@@ -34,7 +46,7 @@ export function BookLoader({ label }: Props) {
           />
         </div>
       </div>
-      {label && <p className="text-sm text-ink/60">{label}</p>}
+      {label && <p className={isSmall ? "text-xs italic text-ink/50" : "text-sm text-ink/60"}>{label}</p>}
     </div>
   );
 }

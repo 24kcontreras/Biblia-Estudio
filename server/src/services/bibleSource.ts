@@ -1,3 +1,4 @@
+import { db } from "../db.js";
 import { slugToUsfm } from "./bibleBookCodes.js";
 
 const BASE_URL = "https://bible.helloao.org/api";
@@ -100,6 +101,30 @@ export const SPANISH_VERSIONS: BibleVersion[] = [
     localVersionName: "Versión Biblia Libre",
     localVersionAbbreviation: "VBL",
   },
+  {
+    id: "spa_nvi",
+    version: "Nueva Versión Internacional (NVI) 2015",
+    description: "Traducción moderna (Desde PDF local).",
+    language: { name: "Español", code: "spa" },
+    localVersionName: "Nueva Versión Internacional",
+    localVersionAbbreviation: "NVI",
+  },
+  {
+    id: "spa_rv1960",
+    version: "Reina Valera 1960",
+    description: "Traducción clásica evangélica (Desde PDF local).",
+    language: { name: "Español", code: "spa" },
+    localVersionName: "Reina Valera 1960",
+    localVersionAbbreviation: "RV1960",
+  },
+  {
+    id: "spa_tnm",
+    version: "Traducción del Nuevo Mundo",
+    description: "Testigos de Jehová (Desde PDF local).",
+    language: { name: "Español", code: "spa" },
+    localVersionName: "Traducción del Nuevo Mundo",
+    localVersionAbbreviation: "TNM",
+  },
 ];
 
 const VALID_VERSION_IDS = new Set(SPANISH_VERSIONS.map((v) => v.id));
@@ -107,14 +132,15 @@ const VALID_VERSION_IDS = new Set(SPANISH_VERSIONS.map((v) => v.id));
 // Cache en memoria: el texto público del CDN es inmutable, así que no expira.
 const cache = new Map<string, unknown>();
 
-async function fetchJson<T>(path: string): Promise<T> {
-  const url = `${BASE_URL}${path}`;
+async function fetchJson<T>(apiPath: string): Promise<T> {
+
+  const url = `${BASE_URL}${apiPath}`;
   const cached = cache.get(url);
   if (cached !== undefined) return cached as T;
 
   const res = await fetch(url);
   if (res.status === 404) {
-    throw new BibleSourceError(`No se encontró el recurso solicitado (${path}).`, 404);
+    throw new BibleSourceError(`No se encontró el recurso solicitado (${apiPath}).`, 404);
   }
   if (!res.ok) {
     throw new BibleSourceError(`Error al consultar la fuente bíblica (${res.status}).`, 502);
@@ -158,6 +184,26 @@ export async function getChapter(
   const usfm = slugToUsfm.get(bookSlug);
   if (!usfm) {
     throw new BibleSourceError(`Libro no reconocido: ${bookSlug}`, 404);
+  }
+
+  // Leer desde la base de datos para las versiones personalizadas (PDF)
+  if (versionId === "spa_nvi" || versionId === "spa_rv1960" || versionId === "spa_tnm") {
+    const res = await db.batch([{
+      sql: "SELECT verse, text FROM local_bible_text WHERE version = ? AND book = ? AND chapter = ? ORDER BY verse",
+      args: [versionId, usfm, chapter],
+    }]);
+    
+    const rows = res[0].rows;
+    if (rows.length === 0) {
+       throw new BibleSourceError(`No se encontró el recurso en la base de datos para ${versionId} ${usfm} ${chapter}. Asegúrate de ingerirlo primero.`, 404);
+    }
+    
+    return rows.map((row) => ({
+      book: bookSlug,
+      chapter: String(chapter),
+      verse: String(row.verse),
+      text: String(row.text),
+    }));
   }
 
   const data = await fetchJson<{ chapter: { content: HelloAOContentEntry[] } }>(

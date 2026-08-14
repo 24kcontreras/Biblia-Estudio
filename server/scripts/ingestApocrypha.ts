@@ -175,28 +175,40 @@ async function translateToSpanish(englishText: string, attempt = 1): Promise<str
   }
 }
 
-async function translateChapters(chapters: RawChapter[]): Promise<RawChapter[]> {
-  const results: RawChapter[] = new Array(chapters.length);
+/**
+ * Traduce e inserta capítulo por capítulo (no todo el libro de una), para que una corrida larga
+ * y desatendida (horas) no pierda el progreso entero de un libro si se corta a mitad de camino
+ * — solo se pierde, como mucho, el capítulo que estaba traduciéndose en ese momento.
+ */
+async function translateAndPersistChapters(workSlug: string, chapters: RawChapter[]): Promise<void> {
   let failures = 0;
 
   for (let i = 0; i < chapters.length; i++) {
     const chapter = chapters[i];
     const started = Date.now();
+    let content = chapter.content;
     try {
-      const content = await translateToSpanish(chapter.content);
-      results[i] = { title: chapter.title, content: content || chapter.content };
+      const translated = await translateToSpanish(chapter.content);
+      content = translated || chapter.content;
       console.log(`  [${i + 1}/${chapters.length}] "${chapter.title}" traducido (${Math.round((Date.now() - started) / 1000)}s)`);
     } catch (err) {
       failures++;
       console.warn(`  Error traduciendo "${chapter.title}" (queda en inglés):`, (err as Error).message);
-      results[i] = chapter;
     }
+
+    await db.run(
+      `INSERT INTO apocrypha_chapters (work_slug, chapter_number, title, content) VALUES (?, ?, ?, ?)
+       ON CONFLICT(work_slug, chapter_number) DO UPDATE SET title = excluded.title, content = excluded.content`,
+      workSlug,
+      i + 1,
+      chapter.title,
+      content
+    );
   }
 
   if (failures > 0) {
     console.warn(`  ADVERTENCIA: ${failures} de ${chapters.length} capítulos quedaron sin traducir.`);
   }
-  return results;
 }
 
 async function main(): Promise<void> {
@@ -214,8 +226,6 @@ async function main(): Promise<void> {
     const rawChapters = await work.fetch();
     console.log(`[${work.slug}] ${rawChapters.length} capítulos descargados. Traduciendo con ${OLLAMA_MODEL}...`);
 
-    const translated = await translateChapters(rawChapters);
-
     await db.run("DELETE FROM apocrypha_chapters WHERE work_slug = ?", work.slug);
     await db.run(
       `INSERT INTO apocrypha_works (slug, name, description, chapter_count) VALUES (?, ?, ?, ?)
@@ -223,21 +233,12 @@ async function main(): Promise<void> {
       work.slug,
       work.name,
       work.description,
-      translated.length
+      rawChapters.length
     );
 
-    const BATCH_SIZE = 50;
-    for (let i = 0; i < translated.length; i += BATCH_SIZE) {
-      const chunk = translated.slice(i, i + BATCH_SIZE);
-      await db.batch(
-        chunk.map((c, j) => ({
-          sql: "INSERT INTO apocrypha_chapters (work_slug, chapter_number, title, content) VALUES (?, ?, ?, ?)",
-          args: [work.slug, i + j + 1, c.title, c.content],
-        }))
-      );
-    }
+    await translateAndPersistChapters(work.slug, rawChapters);
 
-    console.log(`[${work.slug}] Listo: ${translated.length} capítulos traducidos e insertados.`);
+    console.log(`[${work.slug}] Listo: ${rawChapters.length} capítulos traducidos e insertados.`);
   }
 
   console.log("Ingesta de apócrifos completa.");

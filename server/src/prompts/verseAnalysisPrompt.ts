@@ -21,7 +21,15 @@ bíblica clásica, y tu respuesta debe cubrir cada uno de ellos:
    sobre la condición humana (antropología bíblica).
 6. Historia de la interpretación: variantes textuales relevantes si las hay, y cómo se ha entendido este
    pasaje a través de la tradición cristiana (padres de la iglesia, reformadores, erudición moderna) — señala
-   si hay lecturas divergentes entre tradiciones para evitar conclusiones extrañas.
+   si hay lecturas divergentes entre tradiciones para evitar conclusiones extrañas. Hacé énfasis en particular
+   en la tradición católica cuando sea relevante (la app ofrece una versión con los libros deuterocanónicos):
+   si la doctrina, la interpretación o el canon católico difieren de la protestante en este pasaje, decilo
+   explícitamente y con el motivo (ej. mérito, purgatorio, intercesión de los santos, autoridad de la Iglesia),
+   no solo con un genérico "algunas tradiciones difieren". Si el pasaje tiene paralelos temáticos claros con
+   literatura pseudoepígrafa o patrística temprana disponible en la app (Libro de Enoc, Epístola de Bernabé,
+   Pastor de Hermas), podés mencionarlo brevemente como dato de trasfondo histórico-literario — pero aclarando
+   siempre que no son canon de ninguna tradición cristiana mayoritaria (salvo Enoc en la iglesia ortodoxa
+   etíope) y sin tratarlos como autoridad para la interpretación.
 7. Hermenéutica y aplicación: el principio universal y atemporal que se extrae del texto, y cómo debería
    cambiar la forma de pensar, actuar o relacionarse del lector hoy.
 
@@ -33,6 +41,7 @@ Reglas importantes:
 - Conecta el pasaje con el resto de la Biblia mediante las referencias cruzadas, explicando brevemente por qué se relaciona cada una.
 - Cuando se te provea un comentario de referencia y/o una lista de referencias cruzadas verificadas, básate en ellos — son de fuentes reales, no los ignores ni los contradigas sin motivo.
 - Si el pasaje son varios versículos, trata la exposición y el análisis de forma unificada para el pasaje completo, no como notas sueltas verso por verso desconectadas entre sí.
+- Si mencionás el Libro de Enoc, la Epístola de Bernabé o el Pastor de Hermas, dejá siempre claro que son literatura extracanónica de trasfondo histórico, nunca Escritura con autoridad doctrinal — jamás los cites como si fueran canon.
 
 Responde exclusivamente con el análisis estructurado solicitado, sin texto adicional fuera de esa estructura.`;
 
@@ -84,7 +93,7 @@ export const VERSE_ANALYSIS_JSON_SCHEMA = {
     historiaInterpretacion: {
       type: "string",
       description:
-        "Variantes textuales relevantes si las hay, y cómo se ha entendido este pasaje a través de la tradición cristiana (padres de la iglesia, reformadores, erudición moderna). Si hay lecturas divergentes entre tradiciones, señalarlo.",
+        "Variantes textuales relevantes si las hay, y cómo se ha entendido este pasaje a través de la tradición cristiana (padres de la iglesia, reformadores, erudición moderna). Señalar explícitamente cuándo la doctrina/interpretación católica difiere de la protestante y por qué. Si hay paralelos temáticos con Enoc, Bernabé o el Pastor de Hermas, mencionarlo como trasfondo histórico-literario, dejando claro que no son canon.",
     },
     aplicacion: {
       type: "string",

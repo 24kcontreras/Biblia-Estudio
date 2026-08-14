@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { getChatHistory, saveChatAnswer, streamChat, type ChatMessage } from "../api/client";
+import { BookLoader } from "../components/BookLoader";
 import { CitationText } from "../components/CitationText";
 import { usePreferredVersion } from "../hooks/usePreferredVersion";
 
@@ -79,8 +80,30 @@ export function ChatPage() {
     setTimeout(() => setSavedIndex((prev) => (prev === index ? null : prev)), 2000);
   };
 
+  const handleNewChat = () => {
+    localStorage.removeItem(SESSION_KEY);
+    setSessionId(null);
+    setMessages([]);
+    setInput("");
+    setError(null);
+    setStatusMessage(null);
+    setSavedIndex(null);
+  };
+
   return (
     <div className="mx-auto flex h-full max-w-2xl flex-col px-3 sm:px-4">
+      {messages.length > 0 && (
+        <div className="flex justify-end border-b border-ink/10 py-2">
+          <button
+            type="button"
+            onClick={handleNewChat}
+            disabled={sending}
+            className="rounded-full border border-ink/15 px-2.5 py-1 text-xs text-ink/60 transition-colors hover:border-ink/30 hover:bg-ink/5 hover:text-ink disabled:opacity-40"
+          >
+            + Nueva conversación
+          </button>
+        </div>
+      )}
       <div className="flex-1 space-y-4 overflow-y-auto py-4 sm:py-6">
         {messages.length === 0 && (
           <p className="text-center text-sm text-ink/50">
@@ -95,8 +118,8 @@ export function ChatPage() {
                   m.role === "user" ? "bg-ink text-parchment" : "bg-white shadow-sm"
                 }`}
               >
-                {m.role === "assistant" && !m.content && sending && i === messages.length - 1 && statusMessage ? (
-                  <span className="italic text-ink/50">{statusMessage}</span>
+                {m.role === "assistant" && !m.content && sending && i === messages.length - 1 ? (
+                  <BookLoader size="sm" label={statusMessage ?? "Pensando..."} />
                 ) : m.role === "assistant" ? (
                   <CitationText text={m.content} version={version} />
                 ) : (

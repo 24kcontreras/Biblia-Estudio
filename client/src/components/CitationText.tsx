@@ -1,4 +1,4 @@
-import ReactMarkdown, { type Components } from "react-markdown";
+import ReactMarkdown, { defaultUrlTransform, type Components } from "react-markdown";
 import { Link } from "react-router-dom";
 import remarkGfm from "remark-gfm";
 import { findBookByName } from "../data/bibleBooks";
@@ -55,8 +55,13 @@ export function CitationText({ text, version }: Props) {
     },
   };
 
+  // react-markdown sanea los href por defecto y descarta cualquier esquema que no reconozca
+  // (http, https, mailto, etc.) — sin esto, el pseudo-protocolo "citation:" se vacía a "" antes
+  // de llegar al componente `a` de arriba, y el link queda ahí pero sin destino.
+  const urlTransform = (url: string) => (url.startsWith(CITATION_SCHEME) ? url : defaultUrlTransform(url));
+
   return (
-    <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+    <ReactMarkdown remarkPlugins={[remarkGfm]} components={components} urlTransform={urlTransform}>
       {preprocessed}
     </ReactMarkdown>
   );
