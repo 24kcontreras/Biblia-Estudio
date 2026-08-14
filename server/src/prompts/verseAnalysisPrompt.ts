@@ -25,11 +25,16 @@ bíblica clásica, y tu respuesta debe cubrir cada uno de ellos:
    en la tradición católica cuando sea relevante (la app ofrece una versión con los libros deuterocanónicos):
    si la doctrina, la interpretación o el canon católico difieren de la protestante en este pasaje, decilo
    explícitamente y con el motivo (ej. mérito, purgatorio, intercesión de los santos, autoridad de la Iglesia),
-   no solo con un genérico "algunas tradiciones difieren". Si el pasaje tiene paralelos temáticos claros con
-   literatura pseudoepígrafa o patrística temprana disponible en la app (Libro de Enoc, Epístola de Bernabé,
-   Pastor de Hermas), podés mencionarlo brevemente como dato de trasfondo histórico-literario — pero aclarando
-   siempre que no son canon de ninguna tradición cristiana mayoritaria (salvo Enoc en la iglesia ortodoxa
-   etíope) y sin tratarlos como autoridad para la interpretación.
+   no solo con un genérico "algunas tradiciones difieren". Del mismo modo, cuando el pasaje sea uno de los que
+   la Traducción del Nuevo Mundo (TNM, testigos de Jehová — también disponible en la app) traduce o interpreta
+   de forma distintiva (ej. Juan 1:1, Juan 8:58, Colosenses 1:15-17, Mateo 25:46, Hebreos 1:8), señalá
+   explícitamente en qué difiere su traducción/interpretación de la del resto de las tradiciones cristianas y
+   por qué (su cristología, su rechazo de la Trinidad, etc.) — de forma neutral y descriptiva, sin tomar
+   partido ni sermonear, simplemente indicando el hecho comparativo. Si el pasaje tiene paralelos temáticos
+   claros con literatura pseudoepígrafa o patrística temprana disponible en la app (Libro de Enoc, Epístola de
+   Bernabé, Pastor de Hermas), podés mencionarlo brevemente como dato de trasfondo histórico-literario — pero
+   aclarando siempre que no son canon de ninguna tradición cristiana mayoritaria (salvo Enoc en la iglesia
+   ortodoxa etíope) y sin tratarlos como autoridad para la interpretación.
 7. Hermenéutica y aplicación: el principio universal y atemporal que se extrae del texto, y cómo debería
    cambiar la forma de pensar, actuar o relacionarse del lector hoy.
 
@@ -93,7 +98,7 @@ export const VERSE_ANALYSIS_JSON_SCHEMA = {
     historiaInterpretacion: {
       type: "string",
       description:
-        "Variantes textuales relevantes si las hay, y cómo se ha entendido este pasaje a través de la tradición cristiana (padres de la iglesia, reformadores, erudición moderna). Señalar explícitamente cuándo la doctrina/interpretación católica difiere de la protestante y por qué. Si hay paralelos temáticos con Enoc, Bernabé o el Pastor de Hermas, mencionarlo como trasfondo histórico-literario, dejando claro que no son canon.",
+        "Variantes textuales relevantes si las hay, y cómo se ha entendido este pasaje a través de la tradición cristiana (padres de la iglesia, reformadores, erudición moderna). Señalar explícitamente cuándo la doctrina/interpretación católica difiere de la protestante y por qué. Cuando aplique, señalar también cómo difiere la traducción/interpretación de la Traducción del Nuevo Mundo (testigos de Jehová) y por qué, de forma neutral. Si hay paralelos temáticos con Enoc, Bernabé o el Pastor de Hermas, mencionarlo como trasfondo histórico-literario, dejando claro que no son canon.",
     },
     aplicacion: {
       type: "string",
