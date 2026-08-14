@@ -1,10 +1,22 @@
+import {
+  APOCRYPHA_ANALYSIS_JSON_SCHEMA,
+  APOCRYPHA_ANALYSIS_SYSTEM_PROMPT,
+  buildApocryphaAnalysisUserMessage,
+} from "../prompts/apocryphaAnalysisPrompt.js";
 import { CHAT_SYSTEM_PROMPT } from "../prompts/chatSystemPrompt.js";
 import {
   VERSE_ANALYSIS_JSON_SCHEMA,
   VERSE_ANALYSIS_SYSTEM_PROMPT,
   buildVerseAnalysisUserMessage,
 } from "../prompts/verseAnalysisPrompt.js";
-import type { AIProvider, ChatMessage, VerseAnalysis, VerseAnalysisInput } from "./types.js";
+import type {
+  AIProvider,
+  ApocryphaAnalysis,
+  ApocryphaAnalysisInput,
+  ChatMessage,
+  VerseAnalysis,
+  VerseAnalysisInput,
+} from "./types.js";
 
 const MODEL = "openai/gpt-oss-120b";
 const API_URL = "https://api.groq.com/openai/v1/chat/completions";
@@ -73,6 +85,26 @@ export class GroqProvider implements AIProvider {
       throw new Error("La IA no devolvió un análisis estructurado del versículo.");
     }
     return JSON.parse(content) as VerseAnalysis;
+  }
+
+  async analyzeApocrypha(input: ApocryphaAnalysisInput): Promise<ApocryphaAnalysis> {
+    const res = await this.request({
+      messages: [
+        { role: "system", content: APOCRYPHA_ANALYSIS_SYSTEM_PROMPT },
+        { role: "user", content: buildApocryphaAnalysisUserMessage(input) },
+      ],
+      response_format: {
+        type: "json_schema",
+        json_schema: { name: "apocrypha_analysis", schema: APOCRYPHA_ANALYSIS_JSON_SCHEMA },
+      },
+    });
+
+    const data = (await res.json()) as { choices?: [{ message?: { content?: string } }] };
+    const content = data.choices?.[0]?.message?.content;
+    if (!content) {
+      throw new Error("La IA no devolvió un análisis estructurado del capítulo.");
+    }
+    return JSON.parse(content) as ApocryphaAnalysis;
   }
 }
 

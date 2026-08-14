@@ -3,7 +3,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { db, initDb } from "../src/db.js";
 
-const LOCAL_VERSIONS = ["spa_nvi", "spa_rv1960", "spa_tnm"];
+const LOCAL_VERSIONS = ["spa_tnm"];
 const BATCH_SIZE = 500;
 
 async function ingestLocalVersion(versionId: string) {

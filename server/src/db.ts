@@ -133,6 +133,13 @@ const SCHEMA_STATEMENTS = [
     content TEXT NOT NULL,
     PRIMARY KEY (work_slug, chapter_number)
   )`,
+  `CREATE TABLE IF NOT EXISTS apocrypha_analysis_cache (
+    work_slug TEXT NOT NULL,
+    chapter_number INTEGER NOT NULL,
+    analysis_json TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (work_slug, chapter_number)
+  )`,
   `CREATE TABLE IF NOT EXISTS local_bible_text (
     version TEXT NOT NULL,
     book TEXT NOT NULL,

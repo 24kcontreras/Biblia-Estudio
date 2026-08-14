@@ -392,3 +392,51 @@ export function getApocryphaWorks(): Promise<{ works: ApocryphaWork[] }> {
 export function getApocryphaChapter(work: string, chapter: number): Promise<ApocryphaChapter> {
   return fetch(`/api/apocrypha/${encodeURIComponent(work)}/${chapter}`).then((r) => handle(r));
 }
+
+export interface ApocryphaAnalysis {
+  contexto: string;
+  analisisLiterario: string;
+  resumen: string;
+  conexionesBiblicas: CrossReference[];
+  significadoHistorico: string;
+  estadoCanonico: string;
+}
+
+export interface AnalyzeApocryphaResult {
+  analysis: ApocryphaAnalysis;
+  cached: boolean;
+}
+
+export interface AnalyzeApocryphaHandlers {
+  onResult: (result: AnalyzeApocryphaResult) => void;
+  onError: (message: string) => void;
+  /** Aviso transitorio (ej. "Reintentando con IA de respaldo...") mientras se espera la respuesta. */
+  onStatus?: (message: string) => void;
+}
+
+/** Igual patrón que analyzeVerse: cacheado vuelve como JSON normal, uno nuevo se stremea por SSE. */
+export async function analyzeApocrypha(
+  work: string,
+  chapter: number,
+  handlers: AnalyzeApocryphaHandlers
+): Promise<void> {
+  const res = await fetch(`/api/apocrypha/${encodeURIComponent(work)}/${chapter}/analyze`, { method: "POST" });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}) as { error?: string });
+    handlers.onError(body.error ?? `Error ${res.status}`);
+    return;
+  }
+
+  if (res.headers.get("content-type")?.includes("application/json")) {
+    handlers.onResult((await res.json()) as AnalyzeApocryphaResult);
+    return;
+  }
+
+  await consumeSSE(res, (eventType, data) => {
+    const parsed = JSON.parse(data);
+    if (eventType === "result") handlers.onResult(parsed as AnalyzeApocryphaResult);
+    else if (eventType === "error") handlers.onError(parsed.error as string);
+    else if (eventType === "status") handlers.onStatus?.(parsed.message as string);
+  });
+}

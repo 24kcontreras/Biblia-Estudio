@@ -5,11 +5,14 @@ import {
   type ApocryphaChapter,
   type ApocryphaWork,
 } from "../api/client";
+import { ApocryphaAnalysisPanel } from "../components/ApocryphaAnalysisPanel";
 
 export function ApocryphaPage() {
   const [works, setWorks] = useState<ApocryphaWork[] | null>(null);
   const [activeWork, setActiveWork] = useState<string | null>(null);
   const [activeChapter, setActiveChapter] = useState<number | null>(null);
+  const [chapter, setChapter] = useState<ApocryphaChapter | null>(null);
+  const [analyzing, setAnalyzing] = useState(false);
 
   useEffect(() => {
     getApocryphaWorks()
@@ -36,6 +39,7 @@ export function ApocryphaPage() {
                 onClick={() => {
                   setActiveWork(w.slug);
                   setActiveChapter(1);
+                  setAnalyzing(false);
                 }}
                 className={`w-full truncate px-3 py-2 text-left text-sm hover:bg-ink/10 ${
                   w.slug === activeWork ? "font-semibold text-amber-800" : ""
@@ -69,6 +73,7 @@ export function ApocryphaPage() {
                   onClick={() => {
                     setActiveWork(w.slug);
                     setActiveChapter(1);
+                    setAnalyzing(false);
                   }}
                   className="rounded-lg bg-white p-4 text-left shadow-sm transition-colors hover:bg-amber-50"
                 >
@@ -85,11 +90,27 @@ export function ApocryphaPage() {
           <ChapterReader
             work={work}
             chapterNum={activeChapter}
+            chapter={chapter}
+            onChapterLoaded={setChapter}
             onBack={() => setActiveWork(null)}
-            onChangeChapter={setActiveChapter}
+            onChangeChapter={(n) => {
+              setActiveChapter(n);
+              setAnalyzing(false);
+            }}
+            onAnalyze={() => setAnalyzing(true)}
           />
         )}
       </div>
+
+      {work && activeChapter && chapter && analyzing && (
+        <ApocryphaAnalysisPanel
+          workSlug={work.slug}
+          workName={work.name}
+          chapterNumber={activeChapter}
+          chapterTitle={chapter.title}
+          onClose={() => setAnalyzing(false)}
+        />
+      )}
     </div>
   );
 }
@@ -97,24 +118,29 @@ export function ApocryphaPage() {
 function ChapterReader({
   work,
   chapterNum,
+  chapter,
+  onChapterLoaded,
   onBack,
   onChangeChapter,
+  onAnalyze,
 }: {
   work: ApocryphaWork;
   chapterNum: number;
+  chapter: ApocryphaChapter | null;
+  onChapterLoaded: (chapter: ApocryphaChapter | null) => void;
   onBack: () => void;
   onChangeChapter: (n: number) => void;
+  onAnalyze: () => void;
 }) {
-  const [chapter, setChapter] = useState<ApocryphaChapter | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setChapter(null);
+    onChapterLoaded(null);
     setError(null);
     getApocryphaChapter(work.slug, chapterNum)
-      .then(setChapter)
+      .then(onChapterLoaded)
       .catch((err: Error) => setError(err.message));
-  }, [work.slug, chapterNum]);
+  }, [work.slug, chapterNum, onChapterLoaded]);
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-6 sm:px-6">
@@ -151,14 +177,23 @@ function ChapterReader({
       {!error && !chapter && <p className="text-sm text-ink/60">Cargando...</p>}
       {chapter && (
         <>
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-ink/50">{chapter.title}</h2>
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-ink/50">{chapter.title}</h2>
+            <button
+              type="button"
+              onClick={onAnalyze}
+              className="shrink-0 rounded-full border border-ink/15 px-2.5 py-1 text-xs text-ink/60 transition-colors hover:border-ink/30 hover:bg-ink/5 hover:text-ink"
+            >
+              ✨ Analizar con IA
+            </button>
+          </div>
           <p className="whitespace-pre-line text-base leading-8">{chapter.content}</p>
         </>
       )}
 
       <p className="mt-8 border-t border-ink/10 pt-3 text-xs text-ink/40">
-        Traducción asistida por IA (Gemini) a partir de una traducción al inglés de dominio público en
-        Wikisource. No es canon de ninguna tradición cristiana mayoritaria.
+        Traducción asistida por IA a partir de una traducción al inglés de dominio público en Wikisource.
+        No es canon de ninguna tradición cristiana mayoritaria.
       </p>
     </div>
   );

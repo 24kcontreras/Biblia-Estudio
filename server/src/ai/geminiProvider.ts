@@ -1,4 +1,9 @@
 import { GoogleGenAI } from "@google/genai";
+import {
+  APOCRYPHA_ANALYSIS_JSON_SCHEMA,
+  APOCRYPHA_ANALYSIS_SYSTEM_PROMPT,
+  buildApocryphaAnalysisUserMessage,
+} from "../prompts/apocryphaAnalysisPrompt.js";
 import { CHAT_SYSTEM_PROMPT } from "../prompts/chatSystemPrompt.js";
 import {
   VERSE_ANALYSIS_JSON_SCHEMA,
@@ -6,7 +11,14 @@ import {
   buildVerseAnalysisUserMessage,
 } from "../prompts/verseAnalysisPrompt.js";
 import { AIConfigError } from "./types.js";
-import type { AIProvider, ChatMessage, VerseAnalysis, VerseAnalysisInput } from "./types.js";
+import type {
+  AIProvider,
+  ApocryphaAnalysis,
+  ApocryphaAnalysisInput,
+  ChatMessage,
+  VerseAnalysis,
+  VerseAnalysisInput,
+} from "./types.js";
 
 const MODEL = "gemini-3.6-flash";
 
@@ -58,6 +70,25 @@ export class GeminiProvider implements AIProvider {
     }
 
     return JSON.parse(interaction.output_text) as VerseAnalysis;
+  }
+
+  async analyzeApocrypha(input: ApocryphaAnalysisInput): Promise<ApocryphaAnalysis> {
+    const interaction = await this.client.interactions.create({
+      model: MODEL,
+      system_instruction: APOCRYPHA_ANALYSIS_SYSTEM_PROMPT,
+      input: buildApocryphaAnalysisUserMessage(input),
+      response_format: {
+        type: "text",
+        mime_type: "application/json",
+        schema: APOCRYPHA_ANALYSIS_JSON_SCHEMA,
+      },
+    });
+
+    if (!interaction.output_text) {
+      throw new Error("La IA no devolvió un análisis estructurado del capítulo.");
+    }
+
+    return JSON.parse(interaction.output_text) as ApocryphaAnalysis;
   }
 }
 

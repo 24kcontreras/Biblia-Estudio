@@ -37,6 +37,14 @@ export interface ChapterVerse {
  */
 export const SPANISH_VERSIONS: BibleVersion[] = [
   {
+    id: "spa_rv1960",
+    version: "Reina Valera 1960",
+    description: "Traducción clásica evangélica (Desde PDF local).",
+    language: { name: "Español", code: "spa" },
+    localVersionName: "Reina Valera 1960",
+    localVersionAbbreviation: "RV1960",
+  },
+  {
     id: "spa_r09",
     version: "Reina Valera 1909",
     description: "Traducción clásica de dominio público.",
@@ -109,20 +117,13 @@ export const SPANISH_VERSIONS: BibleVersion[] = [
     localVersionName: "Nueva Versión Internacional",
     localVersionAbbreviation: "NVI",
   },
-  {
-    id: "spa_rv1960",
-    version: "Reina Valera 1960",
-    description: "Traducción clásica evangélica (Desde PDF local).",
-    language: { name: "Español", code: "spa" },
-    localVersionName: "Reina Valera 1960",
-    localVersionAbbreviation: "RV1960",
-  },
+
   {
     id: "spa_tnm",
-    version: "Traducción del Nuevo Mundo",
+    version: "Traducción del Nuevo Mundo (Testigos de Jehová)",
     description: "Testigos de Jehová (Desde PDF local).",
     language: { name: "Español", code: "spa" },
-    localVersionName: "Traducción del Nuevo Mundo",
+    localVersionName: "Traducción del Nuevo Mundo (Testigos de Jehová)",
     localVersionAbbreviation: "TNM",
   },
 ];

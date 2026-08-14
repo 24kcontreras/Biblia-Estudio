@@ -1,10 +1,25 @@
 import { createAnthropicProvider } from "./anthropicProvider.js";
 import { createGeminiProvider } from "./geminiProvider.js";
 import { createGroqProvider } from "./groqProvider.js";
-import type { AIProvider, ChatMessage, VerseAnalysis, VerseAnalysisInput } from "./types.js";
+import type {
+  AIProvider,
+  ApocryphaAnalysis,
+  ApocryphaAnalysisInput,
+  ChatMessage,
+  VerseAnalysis,
+  VerseAnalysisInput,
+} from "./types.js";
 
 export { AIConfigError } from "./types.js";
-export type { ChatMessage, VerseAnalysis, VerseAnalysisInput, CrossReference, AIProvider } from "./types.js";
+export type {
+  ChatMessage,
+  VerseAnalysis,
+  VerseAnalysisInput,
+  ApocryphaAnalysis,
+  ApocryphaAnalysisInput,
+  CrossReference,
+  AIProvider,
+} from "./types.js";
 
 function createPrimaryProvider(): AIProvider {
   const providerName = process.env.AI_PROVIDER ?? "anthropic";
@@ -49,6 +64,16 @@ class FallbackProvider implements AIProvider {
       console.error("Proveedor de IA principal falló en analyzeVerse, usando respaldo Groq:", err);
       onFallback?.("Reintentando con IA de respaldo...");
       return this.fallback.analyzeVerse(input);
+    }
+  }
+
+  async analyzeApocrypha(input: ApocryphaAnalysisInput, onFallback?: (message: string) => void): Promise<ApocryphaAnalysis> {
+    try {
+      return await this.primary.analyzeApocrypha(input);
+    } catch (err) {
+      console.error("Proveedor de IA principal falló en analyzeApocrypha, usando respaldo Groq:", err);
+      onFallback?.("Reintentando con IA de respaldo...");
+      return this.fallback.analyzeApocrypha(input);
     }
   }
 }
