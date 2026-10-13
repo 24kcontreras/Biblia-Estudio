@@ -10,6 +10,18 @@ const INDAGAR_PROMPT =
   "Profundiza más en tu respuesta anterior: dame más detalle, ejemplos bíblicos adicionales y matices que no hayas mencionado.";
 const COMPARAR_PROMPT =
   "Dame una segunda perspectiva teológica sobre lo mismo: ¿cómo entendería este pasaje o tema otra tradición cristiana (por ejemplo la católica, la ortodoxa, o una corriente protestante distinta a la que reflejaste)? Señala en qué coinciden y en qué difieren.";
+const FOLLOW_UP_PROMPTS = new Set([INDAGAR_PROMPT, COMPARAR_PROMPT]);
+
+/**
+ * La pregunta que originó la respuesta en `index`. Si se llegó con "Indagar más" o "Comparar
+ * perspectiva", sube hasta la última pregunta escrita por la persona (esos botones no son preguntas).
+ */
+function questionFor(messages: ChatMessage[], index: number): string | null {
+  for (let i = index - 1; i >= 0; i--) {
+    if (messages[i].role === "user" && !FOLLOW_UP_PROMPTS.has(messages[i].content)) return messages[i].content;
+  }
+  return null;
+}
 
 export function ChatPage() {
   const [version] = usePreferredVersion();
@@ -74,10 +86,18 @@ export function ChatPage() {
   const handleSave = async (index: number) => {
     const answer = messages[index]?.content;
     if (!answer) return;
-    const question = index > 0 && messages[index - 1].role === "user" ? messages[index - 1].content : null;
-    await saveChatAnswer(question, answer);
+    await saveChatAnswer(questionFor(messages, index), answer);
     setSavedIndex(index);
     setTimeout(() => setSavedIndex((prev) => (prev === index ? null : prev)), 2000);
+  };
+
+  const handleDownloadPdf = (index: number) => {
+    const answer = messages[index]?.content;
+    if (!answer) return;
+    // jsPDF pesa bastante: se carga solo cuando alguien exporta.
+    import("../lib/generateStudyPdf").then(({ downloadChatPdf }) =>
+      downloadChatPdf({ question: questionFor(messages, index), answer })
+    );
   };
 
   const handleNewChat = () => {
@@ -134,6 +154,13 @@ export function ChatPage() {
                     className="rounded-full border border-ink/15 px-2.5 py-1 text-xs text-ink/60 transition-colors hover:border-ink/30 hover:bg-ink/5 hover:text-ink"
                   >
                     {savedIndex === i ? "Guardado ✓" : "Guardar"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadPdf(i)}
+                    className="rounded-full border border-ink/15 px-2.5 py-1 text-xs text-ink/60 transition-colors hover:border-ink/30 hover:bg-ink/5 hover:text-ink"
+                  >
+                    PDF
                   </button>
                   <button
                     type="button"

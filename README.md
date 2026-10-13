@@ -15,8 +15,10 @@ clásico, las referencias cruzadas y el griego original, sin saltar entre cinco 
   Los resultados se cachean en la base de datos y se pueden exportar a PDF.
 - **Estudio de palabras (NT).** Muestra el texto griego del versículo palabra por palabra, con su
   número Strong, transliteración, definición y una glosa en español.
-- **Chat** para hacer preguntas libres, con las respuestas en streaming. Las respuestas útiles se
-  pueden guardar.
+- **Chat** para hacer preguntas sobre la Biblia, con las respuestas en streaming. Está acotado al
+  estudio bíblico: si le preguntas otra cosa (por ejemplo, cómo escribir un ciclo for), responde
+  que solo ayuda con temas bíblicos. Cada respuesta se puede guardar o exportar como un PDF de
+  estudio, que incluye la pregunta, la respuesta y la lista de pasajes citados.
 - **Búsqueda de texto completo** sobre todas las versiones (SQLite FTS5, sin distinguir tildes).
 - **Marcas personales:** favoritos, colores, notas, versículos para memorizar y colecciones.
   No hay cuentas: cada navegador tiene su propio espacio y se puede sincronizar con otro

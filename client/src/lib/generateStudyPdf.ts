@@ -18,8 +18,8 @@ function stripOriginalLanguageScript(text: string): string {
     .replace(new RegExp(`${ORIGINAL_LANGUAGE_RANGE.source}\\s*-\\s*`, "g"), "")
     .replace(ORIGINAL_LANGUAGE_RANGE, "")
     .replace(/\(\s*\)/g, "")
-    .replace(/\s{2,}/g, " ")
-    .replace(/\s+([,.;:)])/g, "$1")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/[ \t]+([,.;:)])/g, "$1")
     .trim();
 }
 
@@ -63,46 +63,16 @@ function stripMarkdown(text: string): string {
     .trim();
 }
 
-interface AnalysisPdfParams {
-  bookName: string;
-  chapter: number;
-  verseStart: number;
-  verseEnd: number;
-  versionName: string;
-  analysis: VerseAnalysis;
-}
-
-const SECTIONS: { title: string; key: keyof VerseAnalysis }[] = [
-  { title: "1. Contexto histórico y cultural", key: "contexto" },
-  { title: "2. Análisis literario", key: "analisisLiterario" },
-  { title: "3. Exposición", key: "exposicion" },
-  { title: "4. Palabras clave en el idioma original", key: "palabrasClave" },
-  { title: "5. Significado teológico", key: "teologia" },
-  { title: "6. Panorama canónico", key: "panoramaCanonico" },
-];
-
-export function generateAnalysisPdf(params: AnalysisPdfParams): jsPDF {
-  const { bookName, chapter, verseStart, verseEnd, versionName, analysis } = params;
-  const passage = verseEnd > verseStart ? `${bookName} ${chapter}:${verseStart}-${verseEnd}` : `${bookName} ${chapter}:${verseStart}`;
-
+/**
+ * Documento A4 con el estilo de la app: título, subtítulo, secciones con encabezado y texto corrido.
+ * Lo usan tanto el análisis de versículos como las respuestas del chat.
+ */
+function createStudyDoc(title: string, subtitle: string) {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const pageWidth = doc.internal.pageSize.getWidth();
   const pageHeight = doc.internal.pageSize.getHeight();
   const contentWidth = pageWidth - MARGIN * 2;
   let y = MARGIN;
-
-  const addFooter = () => {
-    const pageCount = doc.getNumberOfPages();
-    for (let i = 1; i <= pageCount; i++) {
-      doc.setPage(i);
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(8);
-      doc.setTextColor(150, 150, 150);
-      doc.text(`BibleChat — Estudio bíblico con IA · página ${i} de ${pageCount}`, pageWidth / 2, pageHeight - 25, {
-        align: "center",
-      });
-    }
-  };
 
   const ensureSpace = (needed: number) => {
     if (y + needed > pageHeight - MARGIN - 20) {
@@ -111,36 +81,26 @@ export function generateAnalysisPdf(params: AnalysisPdfParams): jsPDF {
     }
   };
 
-  const addTitle = (text: string) => {
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(20);
-    doc.setTextColor(...ACCENT);
-    const lines = doc.splitTextToSize(text, contentWidth) as string[];
-    ensureSpace(lines.length * 26);
-    doc.text(lines, MARGIN, y + 20);
-    y += lines.length * 26 + 6;
-  };
-
-  const addSubtitle = (text: string) => {
-    doc.setFont("helvetica", "italic");
-    doc.setFontSize(10);
-    doc.setTextColor(120, 110, 100);
-    ensureSpace(16);
-    doc.text(text, MARGIN, y);
-    y += 24;
-  };
-
   const addSectionHeading = (text: string) => {
     ensureSpace(28);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(11.5);
     doc.setTextColor(...ACCENT);
-    doc.text(text.toUpperCase(), MARGIN, y);
+    doc.text(toWinAnsiSafe(text).toUpperCase(), MARGIN, y);
     y += 6;
     doc.setDrawColor(...ACCENT);
     doc.setLineWidth(0.5);
     doc.line(MARGIN, y, MARGIN + contentWidth, y);
     y += 14;
+  };
+
+  const addLabel = (text: string) => {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10.5);
+    doc.setTextColor(...ACCENT);
+    ensureSpace(15);
+    doc.text(toWinAnsiSafe(text), MARGIN, y);
+    y += 15;
   };
 
   const addBody = (raw: string) => {
@@ -164,36 +124,85 @@ export function generateAnalysisPdf(params: AnalysisPdfParams): jsPDF {
     y += 8;
   };
 
-  addTitle(passage);
-  addSubtitle(`Versión: ${versionName} · Generado el ${new Date().toLocaleDateString("es")}`);
+  const finish = (): jsPDF => {
+    const pageCount = doc.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(150, 150, 150);
+      doc.text(`BibleChat — Estudio bíblico con IA · página ${i} de ${pageCount}`, pageWidth / 2, pageHeight - 25, {
+        align: "center",
+      });
+    }
+    return doc;
+  };
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(20);
+  doc.setTextColor(...ACCENT);
+  const titleLines = doc.splitTextToSize(toWinAnsiSafe(title), contentWidth) as string[];
+  doc.text(titleLines, MARGIN, y + 20);
+  y += titleLines.length * 26 + 6;
+
+  doc.setFont("helvetica", "italic");
+  doc.setFontSize(10);
+  doc.setTextColor(120, 110, 100);
+  doc.text(toWinAnsiSafe(subtitle), MARGIN, y);
+  y += 24;
+
+  return { addSectionHeading, addLabel, addBody, finish };
+}
+
+function today(): string {
+  return new Date().toLocaleDateString("es");
+}
+
+interface AnalysisPdfParams {
+  bookName: string;
+  chapter: number;
+  verseStart: number;
+  verseEnd: number;
+  versionName: string;
+  analysis: VerseAnalysis;
+}
+
+const SECTIONS: { title: string; key: keyof VerseAnalysis }[] = [
+  { title: "1. Contexto histórico y cultural", key: "contexto" },
+  { title: "2. Análisis literario", key: "analisisLiterario" },
+  { title: "3. Exposición", key: "exposicion" },
+  { title: "4. Palabras clave en el idioma original", key: "palabrasClave" },
+  { title: "5. Significado teológico", key: "teologia" },
+  { title: "6. Panorama canónico", key: "panoramaCanonico" },
+];
+
+export function generateAnalysisPdf(params: AnalysisPdfParams): jsPDF {
+  const { bookName, chapter, verseStart, verseEnd, versionName, analysis } = params;
+  const passage = verseEnd > verseStart ? `${bookName} ${chapter}:${verseStart}-${verseEnd}` : `${bookName} ${chapter}:${verseStart}`;
+
+  const pdf = createStudyDoc(passage, `Versión: ${versionName} · Generado el ${today()}`);
 
   for (const section of SECTIONS) {
     const value = analysis[section.key];
     if (typeof value !== "string" || !value.trim()) continue;
-    addSectionHeading(section.title);
-    addBody(value);
+    pdf.addSectionHeading(section.title);
+    pdf.addBody(value);
   }
 
   if (analysis.referenciasCruzadas.length > 0) {
-    addSectionHeading("Referencias cruzadas");
+    pdf.addSectionHeading("Referencias cruzadas");
     for (const ref of analysis.referenciasCruzadas) {
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(10.5);
-      doc.setTextColor(...ACCENT);
-      ensureSpace(15);
-      doc.text(ref.referencia, MARGIN, y);
-      y += 15;
-      addBody(ref.nota);
+      pdf.addLabel(ref.referencia);
+      pdf.addBody(ref.nota);
     }
   }
 
-  addSectionHeading("7. Historia de la interpretación");
-  addBody(analysis.historiaInterpretacion);
-  addSectionHeading("8. Aplicación");
-  addBody(analysis.aplicacion);
+  pdf.addSectionHeading("7. Historia de la interpretación");
+  pdf.addBody(analysis.historiaInterpretacion);
+  pdf.addSectionHeading("8. Aplicación");
+  pdf.addBody(analysis.aplicacion);
 
-  addFooter();
-  return doc;
+  return pdf.finish();
 }
 
 export function downloadAnalysisPdf(params: AnalysisPdfParams): void {
@@ -201,4 +210,55 @@ export function downloadAnalysisPdf(params: AnalysisPdfParams): void {
   const safeBook = params.bookName.toLowerCase().replace(/\s+/g, "-");
   const passage = params.verseEnd > params.verseStart ? `${params.verseStart}-${params.verseEnd}` : `${params.verseStart}`;
   doc.save(`${safeBook}-${params.chapter}-${passage}.pdf`);
+}
+
+interface ChatPdfParams {
+  question: string | null;
+  answer: string;
+}
+
+const CITATION_RE = /\[\[([^\]]+)\]\]/g;
+
+/**
+ * PDF de estudio a partir de una respuesta del chat: la pregunta, la respuesta (los títulos markdown
+ * pasan a ser subtítulos) y al final la lista de pasajes citados, para repasarlos con la Biblia abierta.
+ */
+export function generateChatPdf({ question, answer }: ChatPdfParams): jsPDF {
+  const pdf = createStudyDoc("Estudio bíblico", `Generado el ${today()}`);
+
+  const citations = [...new Set(Array.from(answer.matchAll(CITATION_RE), (m) => m[1].trim()))];
+  const text = answer.replace(CITATION_RE, "($1)");
+
+  if (question) {
+    pdf.addSectionHeading("Pregunta");
+    pdf.addBody(question);
+  }
+
+  pdf.addSectionHeading("Respuesta");
+  let paragraph: string[] = [];
+  const flush = () => {
+    if (paragraph.join("").trim()) pdf.addBody(paragraph.join("\n"));
+    paragraph = [];
+  };
+  for (const line of text.split("\n")) {
+    const heading = /^#{1,6}\s+(.+)$/.exec(line);
+    if (heading) {
+      flush();
+      pdf.addLabel(heading[1].replace(/\*+/g, ""));
+    } else {
+      paragraph.push(line);
+    }
+  }
+  flush();
+
+  if (citations.length > 0) {
+    pdf.addSectionHeading("Pasajes citados");
+    pdf.addBody(citations.map((c) => `- ${c}`).join("\n"));
+  }
+
+  return pdf.finish();
+}
+
+export function downloadChatPdf(params: ChatPdfParams): void {
+  generateChatPdf(params).save(`estudio-biblico-${new Date().toISOString().slice(0, 10)}.pdf`);
 }

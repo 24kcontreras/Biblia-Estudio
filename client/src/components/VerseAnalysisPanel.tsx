@@ -33,7 +33,7 @@ export function VerseAnalysisPanel({ version, bookSlug, bookName, chapter, verse
     if (state.status !== "ready") return;
     const { analysis } = state;
     // jsPDF pesa bastante: se carga solo cuando alguien exporta.
-    import("../lib/generateAnalysisPdf").then(({ downloadAnalysisPdf }) =>
+    import("../lib/generateStudyPdf").then(({ downloadAnalysisPdf }) =>
       downloadAnalysisPdf({
         bookName,
         chapter,

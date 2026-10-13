@@ -403,13 +403,26 @@ function ChatGuardadoTab() {
           <li key={s.id} className="rounded-lg bg-white p-3 shadow-sm">
             <div className="flex items-start justify-between gap-2">
               {s.question && <p className="text-xs font-medium text-ink/50">{s.question}</p>}
-              <button
-                type="button"
-                onClick={() => handleDelete(s.id)}
-                className="shrink-0 text-xs text-ink/40 transition-colors hover:text-red-700"
-              >
-                Eliminar
-              </button>
+              <div className="ml-auto flex shrink-0 gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    import("../lib/generateStudyPdf").then(({ downloadChatPdf }) =>
+                      downloadChatPdf({ question: s.question, answer: s.answer })
+                    )
+                  }
+                  className="text-xs text-ink/40 transition-colors hover:text-ink"
+                >
+                  📄 PDF
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDelete(s.id)}
+                  className="text-xs text-ink/40 transition-colors hover:text-red-700"
+                >
+                  Eliminar
+                </button>
+              </div>
             </div>
             <div className="mt-1.5 text-sm leading-relaxed text-ink/80">
               <CitationText text={s.answer} version={version} />
@@ -459,7 +472,7 @@ function AnalisisGuardadoTab() {
                     type="button"
                     onClick={() =>
                       // jsPDF pesa bastante: se carga solo cuando alguien exporta.
-                      import("../lib/generateAnalysisPdf").then(({ downloadAnalysisPdf }) =>
+                      import("../lib/generateStudyPdf").then(({ downloadAnalysisPdf }) =>
                         downloadAnalysisPdf({
                           bookName: s.bookName,
                           chapter: s.chapter,
