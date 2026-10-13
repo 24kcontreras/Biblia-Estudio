@@ -1,3 +1,5 @@
+import { getUserId } from "../lib/userId";
+
 export interface BibleBook {
   slug: string;
   name: string;
@@ -88,6 +90,13 @@ export interface CollectionDetail {
   verses: CollectionVerseRef[];
 }
 
+/** fetch con el identificador anónimo del usuario (ver lib/userId.ts) en cada petición. */
+function api(input: string, init: RequestInit = {}): Promise<Response> {
+  const headers = new Headers(init.headers);
+  headers.set("X-User-Id", getUserId());
+  return fetch(input, { ...init, headers });
+}
+
 async function handle<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const body = await res.json().catch(() => ({}) as { error?: string });
@@ -97,11 +106,11 @@ async function handle<T>(res: Response): Promise<T> {
 }
 
 export function getBooks(): Promise<BibleBook[]> {
-  return fetch("/api/bible/books").then((r) => handle<BibleBook[]>(r));
+  return api("/api/bible/books").then((r) => handle<BibleBook[]>(r));
 }
 
 export function getVersions(): Promise<BibleVersion[]> {
-  return fetch("/api/bible/versions").then((r) => handle<BibleVersion[]>(r));
+  return api("/api/bible/versions").then((r) => handle<BibleVersion[]>(r));
 }
 
 export interface SearchResult {
@@ -113,7 +122,7 @@ export interface SearchResult {
 
 export function searchBible(version: string, q: string): Promise<{ results: SearchResult[] }> {
   const params = new URLSearchParams({ q, version });
-  return fetch(`/api/bible/search?${params.toString()}`).then((r) => handle(r));
+  return api(`/api/bible/search?${params.toString()}`).then((r) => handle(r));
 }
 
 export interface WordStudyEntry {
@@ -126,11 +135,11 @@ export interface WordStudyEntry {
 }
 
 export function getWordStudy(book: string, chapter: number, verse: number): Promise<{ words: WordStudyEntry[] }> {
-  return fetch(`/api/bible/word-study/${encodeURIComponent(book)}/${chapter}/${verse}`).then((r) => handle(r));
+  return api(`/api/bible/word-study/${encodeURIComponent(book)}/${chapter}/${verse}`).then((r) => handle(r));
 }
 
 export function getChapter(version: string, book: string, chapter: number): Promise<ChapterResponse> {
-  return fetch(`/api/bible/${encodeURIComponent(version)}/${encodeURIComponent(book)}/${chapter}`).then((r) =>
+  return api(`/api/bible/${encodeURIComponent(version)}/${encodeURIComponent(book)}/${chapter}`).then((r) =>
     handle<ChapterResponse>(r)
   );
 }
@@ -152,7 +161,7 @@ export async function analyzeVerse(
   params: { version: string; book: string; chapter: number; verse: number; verseEnd?: number },
   handlers: AnalyzeVerseHandlers
 ): Promise<void> {
-  const res = await fetch("/api/verse/analyze", {
+  const res = await api("/api/verse/analyze", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(params),
@@ -190,7 +199,7 @@ export interface SavedAnalysis {
 }
 
 export function getSavedAnalyses(): Promise<{ saved: SavedAnalysis[] }> {
-  return fetch("/api/verse/analyze/saved").then((r) => handle(r));
+  return api("/api/verse/analyze/saved").then((r) => handle(r));
 }
 
 export function saveAnalysis(params: {
@@ -201,7 +210,7 @@ export function saveAnalysis(params: {
   verseEnd: number;
   analysis: VerseAnalysis;
 }): Promise<{ id: number }> {
-  return fetch("/api/verse/analyze/saved", {
+  return api("/api/verse/analyze/saved", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(params),
@@ -209,13 +218,13 @@ export function saveAnalysis(params: {
 }
 
 export function deleteSavedAnalysis(id: number): Promise<void> {
-  return fetch(`/api/verse/analyze/saved/${id}`, { method: "DELETE" }).then((r) => {
+  return api(`/api/verse/analyze/saved/${id}`, { method: "DELETE" }).then((r) => {
     if (!r.ok) throw new Error(`Error ${r.status}`);
   });
 }
 
 export function getChatHistory(sessionId: string): Promise<{ messages: ChatMessage[] }> {
-  return fetch(`/api/chat/${encodeURIComponent(sessionId)}`).then((r) => handle(r));
+  return api(`/api/chat/${encodeURIComponent(sessionId)}`).then((r) => handle(r));
 }
 
 export interface SavedChatAnswer {
@@ -226,11 +235,11 @@ export interface SavedChatAnswer {
 }
 
 export function getSavedChatAnswers(): Promise<{ saved: SavedChatAnswer[] }> {
-  return fetch("/api/chat/saved").then((r) => handle(r));
+  return api("/api/chat/saved").then((r) => handle(r));
 }
 
 export function saveChatAnswer(question: string | null, answer: string): Promise<{ id: number }> {
-  return fetch("/api/chat/saved", {
+  return api("/api/chat/saved", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ question, answer }),
@@ -238,7 +247,7 @@ export function saveChatAnswer(question: string | null, answer: string): Promise
 }
 
 export function deleteSavedChatAnswer(id: number): Promise<void> {
-  return fetch(`/api/chat/saved/${id}`, { method: "DELETE" }).then((r) => {
+  return api(`/api/chat/saved/${id}`, { method: "DELETE" }).then((r) => {
     if (!r.ok) throw new Error(`Error ${r.status}`);
   });
 }
@@ -284,7 +293,7 @@ export async function streamChat(
   sessionId: string | null,
   handlers: ChatStreamHandlers
 ): Promise<void> {
-  const res = await fetch("/api/chat", {
+  const res = await api("/api/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ message, sessionId }),
@@ -306,14 +315,14 @@ export async function streamChat(
 }
 
 export function getChapterMarks(version: string, book: string, chapter: number): Promise<{ marks: VerseMark[] }> {
-  return fetch(`/api/marks/chapter/${encodeURIComponent(version)}/${encodeURIComponent(book)}/${chapter}`).then(
+  return api(`/api/marks/chapter/${encodeURIComponent(version)}/${encodeURIComponent(book)}/${chapter}`).then(
     (r) => handle(r)
   );
 }
 
 export function listMarks(type?: "favorite" | "memorize"): Promise<{ marks: VerseMark[] }> {
   const query = type ? `?type=${type}` : "";
-  return fetch(`/api/marks${query}`).then((r) => handle(r));
+  return api(`/api/marks${query}`).then((r) => handle(r));
 }
 
 export function upsertMark(
@@ -323,7 +332,7 @@ export function upsertMark(
   verse: number,
   update: VerseMarkUpdate
 ): Promise<{ mark: VerseMark | null }> {
-  return fetch(`/api/marks/${encodeURIComponent(version)}/${encodeURIComponent(book)}/${chapter}/${verse}`, {
+  return api(`/api/marks/${encodeURIComponent(version)}/${encodeURIComponent(book)}/${chapter}/${verse}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(update),
@@ -331,11 +340,11 @@ export function upsertMark(
 }
 
 export function getCollections(): Promise<{ collections: CollectionSummary[] }> {
-  return fetch("/api/collections").then((r) => handle(r));
+  return api("/api/collections").then((r) => handle(r));
 }
 
 export function createCollection(name: string): Promise<{ id: number; name: string }> {
-  return fetch("/api/collections", {
+  return api("/api/collections", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name }),
@@ -343,17 +352,17 @@ export function createCollection(name: string): Promise<{ id: number; name: stri
 }
 
 export function deleteCollection(id: number): Promise<void> {
-  return fetch(`/api/collections/${id}`, { method: "DELETE" }).then((r) => {
+  return api(`/api/collections/${id}`, { method: "DELETE" }).then((r) => {
     if (!r.ok) throw new Error(`Error ${r.status}`);
   });
 }
 
 export function getCollection(id: number): Promise<CollectionDetail> {
-  return fetch(`/api/collections/${id}`).then((r) => handle(r));
+  return api(`/api/collections/${id}`).then((r) => handle(r));
 }
 
 export function addVerseToCollection(collectionId: number, ref: CollectionVerseRef): Promise<void> {
-  return fetch(`/api/collections/${collectionId}/verses`, {
+  return api(`/api/collections/${collectionId}/verses`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(ref),
@@ -363,7 +372,7 @@ export function addVerseToCollection(collectionId: number, ref: CollectionVerseR
 }
 
 export function removeVerseFromCollection(collectionId: number, ref: CollectionVerseRef): Promise<void> {
-  return fetch(
+  return api(
     `/api/collections/${collectionId}/verses/${encodeURIComponent(ref.version)}/${encodeURIComponent(
       ref.book
     )}/${ref.chapter}/${ref.verse}`,
@@ -386,11 +395,11 @@ export interface ApocryphaChapter {
 }
 
 export function getApocryphaWorks(): Promise<{ works: ApocryphaWork[] }> {
-  return fetch("/api/apocrypha/works").then((r) => handle(r));
+  return api("/api/apocrypha/works").then((r) => handle(r));
 }
 
 export function getApocryphaChapter(work: string, chapter: number): Promise<ApocryphaChapter> {
-  return fetch(`/api/apocrypha/${encodeURIComponent(work)}/${chapter}`).then((r) => handle(r));
+  return api(`/api/apocrypha/${encodeURIComponent(work)}/${chapter}`).then((r) => handle(r));
 }
 
 export interface ApocryphaAnalysis {
@@ -420,7 +429,7 @@ export async function analyzeApocrypha(
   chapter: number,
   handlers: AnalyzeApocryphaHandlers
 ): Promise<void> {
-  const res = await fetch(`/api/apocrypha/${encodeURIComponent(work)}/${chapter}/analyze`, { method: "POST" });
+  const res = await api(`/api/apocrypha/${encodeURIComponent(work)}/${chapter}/analyze`, { method: "POST" });
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}) as { error?: string });

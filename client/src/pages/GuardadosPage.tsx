@@ -23,7 +23,7 @@ import {
 import { CitationText } from "../components/CitationText";
 import { findBookBySlug } from "../data/bibleBooks";
 import { usePreferredVersion } from "../hooks/usePreferredVersion";
-import { downloadAnalysisPdf } from "../lib/generateAnalysisPdf";
+import { getUserId, setUserId } from "../lib/userId";
 
 type Tab = "guardados" | "colecciones" | "memorizar" | "chat" | "analisis";
 type MarkFilter = "todos" | "favorito" | "color" | "nota" | "memorizar";
@@ -68,7 +68,73 @@ export function GuardadosPage() {
       {tab === "memorizar" && <MemorizarTab />}
       {tab === "chat" && <ChatGuardadoTab />}
       {tab === "analisis" && <AnalisisGuardadoTab />}
+
+      <SyncCodeSection />
     </div>
+  );
+}
+
+/**
+ * No hay cuentas: lo guardado queda asociado a un código anónimo de este navegador. Para ver lo
+ * mismo en otro dispositivo se copia el código acá y se pega allá.
+ */
+function SyncCodeSection() {
+  const [code] = useState(getUserId);
+  const [input, setInput] = useState("");
+  const [copied, setCopied] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleCopy = async () => {
+    await navigator.clipboard.writeText(code);
+    setCopied(true);
+  };
+
+  const handleUse = () => {
+    if (!setUserId(input)) {
+      setError("Ese código no es válido.");
+      return;
+    }
+    window.location.reload();
+  };
+
+  return (
+    <details className="mt-10 rounded-lg border border-ink/10 p-4 text-sm">
+      <summary className="cursor-pointer font-medium text-ink/70">Código de sincronización</summary>
+      <p className="mt-3 text-ink/60">
+        Lo que guardas queda asociado a este código. Para verlo en otro dispositivo, copia el código y pégalo
+        allá. No lo compartas: quien lo tenga puede ver y editar tus guardados.
+      </p>
+      <div className="mt-3 flex gap-2">
+        <code className="min-w-0 flex-1 truncate rounded bg-ink/5 px-3 py-2 text-xs">{code}</code>
+        <button
+          type="button"
+          onClick={handleCopy}
+          className="shrink-0 rounded border border-ink/20 px-3 py-2 text-xs hover:bg-ink/10"
+        >
+          {copied ? "Copiado" : "Copiar"}
+        </button>
+      </div>
+      <div className="mt-3 flex gap-2">
+        <input
+          value={input}
+          onChange={(e) => {
+            setInput(e.target.value);
+            setError(null);
+          }}
+          placeholder="Pegar código de otro dispositivo..."
+          className="min-w-0 flex-1 rounded border border-ink/20 px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-amber-400"
+        />
+        <button
+          type="button"
+          onClick={handleUse}
+          disabled={!input.trim()}
+          className="shrink-0 rounded bg-ink px-3 py-2 text-xs font-medium text-parchment disabled:opacity-40"
+        >
+          Usar
+        </button>
+      </div>
+      {error && <p className="mt-2 text-xs text-red-700">{error}</p>}
+    </details>
   );
 }
 
@@ -392,14 +458,17 @@ function AnalisisGuardadoTab() {
                   <button
                     type="button"
                     onClick={() =>
-                      downloadAnalysisPdf({
-                        bookName: s.bookName,
-                        chapter: s.chapter,
-                        verseStart: s.verseStart,
-                        verseEnd: s.verseEnd,
-                        versionName: s.version,
-                        analysis: s.analysis,
-                      })
+                      // jsPDF pesa bastante: se carga solo cuando alguien exporta.
+                      import("../lib/generateAnalysisPdf").then(({ downloadAnalysisPdf }) =>
+                        downloadAnalysisPdf({
+                          bookName: s.bookName,
+                          chapter: s.chapter,
+                          verseStart: s.verseStart,
+                          verseEnd: s.verseEnd,
+                          versionName: s.version,
+                          analysis: s.analysis,
+                        })
+                      )
                     }
                     className="text-xs text-ink/40 transition-colors hover:text-ink"
                   >

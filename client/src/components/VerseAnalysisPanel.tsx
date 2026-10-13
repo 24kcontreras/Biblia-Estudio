@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { analyzeVerse, saveAnalysis, type VerseAnalysis } from "../api/client";
-import { downloadAnalysisPdf } from "../lib/generateAnalysisPdf";
 import { BookLoader } from "./BookLoader";
 import { CitationText } from "./CitationText";
 
@@ -32,14 +31,18 @@ export function VerseAnalysisPanel({ version, bookSlug, bookName, chapter, verse
 
   const handleDownloadPdf = () => {
     if (state.status !== "ready") return;
-    downloadAnalysisPdf({
-      bookName,
-      chapter,
-      verseStart: verse,
-      verseEnd: rangeEnd,
-      versionName: version,
-      analysis: state.analysis,
-    });
+    const { analysis } = state;
+    // jsPDF pesa bastante: se carga solo cuando alguien exporta.
+    import("../lib/generateAnalysisPdf").then(({ downloadAnalysisPdf }) =>
+      downloadAnalysisPdf({
+        bookName,
+        chapter,
+        verseStart: verse,
+        verseEnd: rangeEnd,
+        versionName: version,
+        analysis,
+      })
+    );
   };
 
   const [statusMessage, setStatusMessage] = useState<string | null>(null);

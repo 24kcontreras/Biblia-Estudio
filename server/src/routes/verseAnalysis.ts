@@ -2,9 +2,11 @@ import { Router } from "express";
 import { AIConfigError, getAIProvider } from "../ai/index.js";
 import type { VerseAnalysis } from "../ai/index.js";
 import { db } from "../db.js";
+import { consumeAiQuota } from "../rateLimit.js";
 import { findBook } from "../services/bibleBooks.js";
 import { BibleSourceError, getChapter } from "../services/bibleSource.js";
 import { getCommentary, getVerifiedCrossReferences } from "../services/grounding.js";
+import { requireUser, userIdOf } from "../user.js";
 
 export const verseAnalysisRouter = Router();
 
@@ -23,10 +25,13 @@ interface SavedAnalysisRow {
   created_at: string;
 }
 
+verseAnalysisRouter.use("/saved", requireUser);
+
 verseAnalysisRouter.get("/saved", async (_req, res, next) => {
   try {
     const rows = (await db.all(
-      "SELECT id, version, book, book_name, chapter, verse_start, verse_end, analysis_json, created_at FROM saved_analyses ORDER BY created_at DESC"
+      "SELECT id, version, book, book_name, chapter, verse_start, verse_end, analysis_json, created_at FROM saved_analyses WHERE user_id = ? ORDER BY created_at DESC",
+      userIdOf(res)
     )) as SavedAnalysisRow[];
 
     res.json({
@@ -71,8 +76,9 @@ verseAnalysisRouter.post("/saved", async (req, res, next) => {
     }
 
     const result = await db.run(
-      `INSERT INTO saved_analyses (version, book, book_name, chapter, verse_start, verse_end, analysis_json)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO saved_analyses (user_id, version, book, book_name, chapter, verse_start, verse_end, analysis_json)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      userIdOf(res),
       version,
       bookMeta.slug,
       bookMeta.name,
@@ -90,7 +96,7 @@ verseAnalysisRouter.post("/saved", async (req, res, next) => {
 
 verseAnalysisRouter.delete("/saved/:id", async (req, res, next) => {
   try {
-    await db.run("DELETE FROM saved_analyses WHERE id = ?", Number(req.params.id));
+    await db.run("DELETE FROM saved_analyses WHERE id = ? AND user_id = ?", Number(req.params.id), userIdOf(res));
     res.status(204).end();
   } catch (err) {
     next(err);
@@ -146,6 +152,8 @@ verseAnalysisRouter.post("/", async (req, res, next) => {
       }
       throw err;
     }
+
+    if (!(await consumeAiQuota(req, res))) return;
 
     const chapterVerses = await getChapter(version, bookMeta.slug, chapterNum);
     const passageVerses = chapterVerses.filter((v) => {

@@ -8,6 +8,7 @@ import { collectionsRouter } from "./routes/collections.js";
 import { marksRouter } from "./routes/marks.js";
 import { verseAnalysisRouter } from "./routes/verseAnalysis.js";
 import { initDb } from "./db.js";
+import { requireUser } from "./user.js";
 
 await initDb();
 
@@ -21,14 +22,14 @@ app.use("/api/bible", bibleRouter);
 app.use("/api/apocrypha", apocryphaRouter);
 app.use("/api/chat", chatRouter);
 app.use("/api/verse/analyze", verseAnalysisRouter);
-app.use("/api/marks", marksRouter);
-app.use("/api/collections", collectionsRouter);
+app.use("/api/marks", requireUser, marksRouter);
+app.use("/api/collections", requireUser, collectionsRouter);
 
 app.get("/api/health", (_req, res) => {
   const aiProvider = process.env.AI_PROVIDER ?? "anthropic";
   const aiConfigured =
     aiProvider === "gemini" ? Boolean(process.env.GEMINI_API_KEY) : Boolean(process.env.ANTHROPIC_API_KEY);
-  res.json({ ok: true, aiProvider, aiConfigured });
+  res.json({ ok: true, aiProvider, aiConfigured, fallbackConfigured: Boolean(process.env.GROQ_API_KEY) });
 });
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars

@@ -2,6 +2,7 @@ import { Router } from "express";
 import { asyncHandler } from "../asyncHandler.js";
 import { db } from "../db.js";
 import { findBook } from "../services/bibleBooks.js";
+import { userIdOf } from "../user.js";
 
 export const marksRouter = Router();
 
@@ -40,7 +41,8 @@ marksRouter.get(
     }
 
     const rows = (await db.all(
-      "SELECT * FROM verse_marks WHERE version = ? AND book = ? AND chapter = ?",
+      "SELECT * FROM verse_marks WHERE user_id = ? AND version = ? AND book = ? AND chapter = ?",
+      userIdOf(res),
       version,
       bookMeta.slug,
       Number(chapter)
@@ -54,14 +56,15 @@ marksRouter.get(
   "/",
   asyncHandler(async (req, res) => {
     const type = req.query.type;
+    const userId = userIdOf(res);
     let rows: MarkRow[];
 
     if (type === "favorite") {
-      rows = (await db.all("SELECT * FROM verse_marks WHERE is_favorite = 1 ORDER BY updated_at DESC")) as MarkRow[];
+      rows = (await db.all("SELECT * FROM verse_marks WHERE user_id = ? AND is_favorite = 1 ORDER BY updated_at DESC", userId)) as MarkRow[];
     } else if (type === "memorize") {
-      rows = (await db.all("SELECT * FROM verse_marks WHERE memorize = 1 ORDER BY updated_at DESC")) as MarkRow[];
+      rows = (await db.all("SELECT * FROM verse_marks WHERE user_id = ? AND memorize = 1 ORDER BY updated_at DESC", userId)) as MarkRow[];
     } else {
-      rows = (await db.all("SELECT * FROM verse_marks ORDER BY updated_at DESC")) as MarkRow[];
+      rows = (await db.all("SELECT * FROM verse_marks WHERE user_id = ? ORDER BY updated_at DESC", userId)) as MarkRow[];
     }
 
     res.json({ marks: rows.map(toMark) });
@@ -74,6 +77,7 @@ marksRouter.put(
     const { version, book, chapter, verse } = req.params;
     const chapterNum = Number(chapter);
     const verseNum = Number(verse);
+    const userId = userIdOf(res);
     const bookMeta = findBook(book);
     if (!bookMeta) {
       res.status(404).json({ error: `Libro no reconocido: ${book}` });
@@ -88,7 +92,8 @@ marksRouter.put(
     };
 
     const current = (await db.get(
-      "SELECT * FROM verse_marks WHERE version = ? AND book = ? AND chapter = ? AND verse = ?",
+      "SELECT * FROM verse_marks WHERE user_id = ? AND version = ? AND book = ? AND chapter = ? AND verse = ?",
+      userId,
       version,
       bookMeta.slug,
       chapterNum,
@@ -106,7 +111,8 @@ marksRouter.put(
 
     if (isEmpty) {
       await db.run(
-        "DELETE FROM verse_marks WHERE version = ? AND book = ? AND chapter = ? AND verse = ?",
+        "DELETE FROM verse_marks WHERE user_id = ? AND version = ? AND book = ? AND chapter = ? AND verse = ?",
+        userId,
         version,
         bookMeta.slug,
         chapterNum,
@@ -117,14 +123,15 @@ marksRouter.put(
     }
 
     await db.run(
-      `INSERT INTO verse_marks (version, book, chapter, verse, is_favorite, color, note, memorize, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
-       ON CONFLICT(version, book, chapter, verse) DO UPDATE SET
+      `INSERT INTO verse_marks (user_id, version, book, chapter, verse, is_favorite, color, note, memorize, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+       ON CONFLICT(user_id, version, book, chapter, verse) DO UPDATE SET
          is_favorite = excluded.is_favorite,
          color = excluded.color,
          note = excluded.note,
          memorize = excluded.memorize,
          updated_at = excluded.updated_at`,
+      userId,
       version,
       bookMeta.slug,
       chapterNum,

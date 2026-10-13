@@ -10,7 +10,55 @@ if (!url) {
 // connect() es liviano y síncrono — no abre conexión de red hasta la primera consulta.
 export const db = connect({ url, authToken });
 
+/**
+ * Tablas con datos personales: cada fila pertenece a un usuario anónimo (el UUID que el cliente
+ * manda en el header X-User-Id). Van aparte porque scripts/migrateToUsers.ts las recrea al migrar
+ * una base creada antes de que existiera user_id.
+ */
+export const USER_TABLES: Record<string, string> = {
+  verse_marks: `CREATE TABLE IF NOT EXISTS verse_marks (
+    user_id TEXT NOT NULL,
+    version TEXT NOT NULL,
+    book TEXT NOT NULL,
+    chapter INTEGER NOT NULL,
+    verse INTEGER NOT NULL,
+    is_favorite INTEGER NOT NULL DEFAULT 0,
+    color TEXT,
+    note TEXT,
+    memorize INTEGER NOT NULL DEFAULT 0,
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (user_id, version, book, chapter, verse)
+  )`,
+  collections: `CREATE TABLE IF NOT EXISTS collections (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    name TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (user_id, name)
+  )`,
+  saved_chat_answers: `CREATE TABLE IF NOT EXISTS saved_chat_answers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    question TEXT,
+    answer TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`,
+  saved_analyses: `CREATE TABLE IF NOT EXISTS saved_analyses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id TEXT NOT NULL,
+    version TEXT NOT NULL,
+    book TEXT NOT NULL,
+    book_name TEXT NOT NULL,
+    chapter INTEGER NOT NULL,
+    verse_start INTEGER NOT NULL,
+    verse_end INTEGER NOT NULL,
+    analysis_json TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )`,
+};
+
 const SCHEMA_STATEMENTS = [
+  ...Object.values(USER_TABLES),
   // Reemplazada por verse_analysis_cache_v2 (soporta rangos de versículos) — se limpia la vieja.
   `DROP TABLE IF EXISTS verse_analysis_cache`,
   `CREATE TABLE IF NOT EXISTS verse_analysis_cache_v2 (
@@ -31,23 +79,6 @@ const SCHEMA_STATEMENTS = [
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   )`,
   `CREATE INDEX IF NOT EXISTS idx_chat_messages_session ON chat_messages (session_id, id)`,
-  `CREATE TABLE IF NOT EXISTS verse_marks (
-    version TEXT NOT NULL,
-    book TEXT NOT NULL,
-    chapter INTEGER NOT NULL,
-    verse INTEGER NOT NULL,
-    is_favorite INTEGER NOT NULL DEFAULT 0,
-    color TEXT,
-    note TEXT,
-    memorize INTEGER NOT NULL DEFAULT 0,
-    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-    PRIMARY KEY (version, book, chapter, verse)
-  )`,
-  `CREATE TABLE IF NOT EXISTS collections (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL UNIQUE,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  )`,
   `CREATE TABLE IF NOT EXISTS collection_verses (
     collection_id INTEGER NOT NULL,
     version TEXT NOT NULL,
@@ -76,12 +107,6 @@ const SCHEMA_STATEMENTS = [
   )`,
   `CREATE INDEX IF NOT EXISTS idx_crossref_from
     ON cross_references (from_book, from_chapter, from_verse, votes DESC)`,
-  `CREATE TABLE IF NOT EXISTS saved_chat_answers (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    question TEXT,
-    answer TEXT NOT NULL,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  )`,
   `CREATE VIRTUAL TABLE IF NOT EXISTS bible_search USING fts5(
     version UNINDEXED,
     book UNINDEXED,
@@ -109,17 +134,6 @@ const SCHEMA_STATEMENTS = [
     PRIMARY KEY (book, chapter, verse, word_order)
   )`,
   `CREATE INDEX IF NOT EXISTS idx_word_study_verse ON word_study (book, chapter, verse)`,
-  `CREATE TABLE IF NOT EXISTS saved_analyses (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    version TEXT NOT NULL,
-    book TEXT NOT NULL,
-    book_name TEXT NOT NULL,
-    chapter INTEGER NOT NULL,
-    verse_start INTEGER NOT NULL,
-    verse_end INTEGER NOT NULL,
-    analysis_json TEXT NOT NULL,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
-  )`,
   `CREATE TABLE IF NOT EXISTS apocrypha_works (
     slug TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -147,6 +161,12 @@ const SCHEMA_STATEMENTS = [
     verse INTEGER NOT NULL,
     text TEXT NOT NULL,
     PRIMARY KEY (version, book, chapter, verse)
+  )`,
+  // Contadores de ventana fija para limitar las llamadas a la IA (ver rateLimit.ts).
+  `CREATE TABLE IF NOT EXISTS rate_limits (
+    key TEXT PRIMARY KEY,
+    window_start INTEGER NOT NULL,
+    count INTEGER NOT NULL
   )`,
 ];
 

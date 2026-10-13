@@ -194,7 +194,7 @@ export async function getChapter(
       args: [versionId, usfm, chapter],
     }]);
     
-    const rows = res[0].rows;
+    const rows = res[0].rows as { verse: number; text: string }[];
     if (rows.length === 0) {
        throw new BibleSourceError(`No se encontró el recurso en la base de datos para ${versionId} ${usfm} ${chapter}. Asegúrate de ingerirlo primero.`, 404);
     }

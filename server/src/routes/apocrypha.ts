@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { AIConfigError, getAIProvider, type ApocryphaAnalysis } from "../ai/index.js";
 import { db } from "../db.js";
+import { consumeAiQuota } from "../rateLimit.js";
 
 export const apocryphaRouter = Router();
 
@@ -107,6 +108,8 @@ apocryphaRouter.post("/:work/:chapter/analyze", async (req, res, next) => {
       }
       throw err;
     }
+
+    if (!(await consumeAiQuota(req, res))) return;
 
     // Streaming (SSE): igual que el análisis de versículos, para poder avisar ("event: status")
     // si el proveedor principal falla y se reintenta con el respaldo, antes de tener el resultado.

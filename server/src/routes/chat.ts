@@ -4,6 +4,8 @@ import { AIConfigError, getAIProvider } from "../ai/index.js";
 import type { ChatMessage } from "../ai/index.js";
 import { asyncHandler } from "../asyncHandler.js";
 import { db } from "../db.js";
+import { consumeAiQuota } from "../rateLimit.js";
+import { requireUser, userIdOf } from "../user.js";
 
 export const chatRouter = Router();
 
@@ -27,11 +29,14 @@ interface SavedChatAnswerRow {
   created_at: string;
 }
 
+chatRouter.use("/saved", requireUser);
+
 chatRouter.get(
   "/saved",
   asyncHandler(async (_req, res) => {
     const rows = (await db.all(
-      "SELECT id, question, answer, created_at FROM saved_chat_answers ORDER BY created_at DESC"
+      "SELECT id, question, answer, created_at FROM saved_chat_answers WHERE user_id = ? ORDER BY created_at DESC",
+      userIdOf(res)
     )) as SavedChatAnswerRow[];
     res.json({ saved: rows });
   })
@@ -47,7 +52,8 @@ chatRouter.post(
     }
 
     const result = await db.run(
-      "INSERT INTO saved_chat_answers (question, answer) VALUES (?, ?)",
+      "INSERT INTO saved_chat_answers (user_id, question, answer) VALUES (?, ?, ?)",
+      userIdOf(res),
       typeof question === "string" && question.trim() ? question : null,
       answer
     );
@@ -58,7 +64,7 @@ chatRouter.post(
 chatRouter.delete(
   "/saved/:id",
   asyncHandler(async (req, res) => {
-    await db.run("DELETE FROM saved_chat_answers WHERE id = ?", Number(req.params.id));
+    await db.run("DELETE FROM saved_chat_answers WHERE id = ? AND user_id = ?", Number(req.params.id), userIdOf(res));
     res.status(204).end();
   })
 );
@@ -95,6 +101,8 @@ chatRouter.post(
       }
       throw err;
     }
+
+    if (!(await consumeAiQuota(req, res))) return;
 
     const history = (await db.all(
       "SELECT role, content FROM chat_messages WHERE session_id = ? ORDER BY id ASC",
